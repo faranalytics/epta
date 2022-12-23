@@ -1,0 +1,27 @@
+{
+  "name": "epta",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/faranalytics/epta.git"
+  },
+  "author": "FAR",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/faranalytics/epta/issues"
+  },
+  "homepage": "https://github.com/faranalytics/epta#readme",
+  "devDependencies": {
+    "@types/node": "^18.11.17",
+    "typescript": "^4.9.3"
+  },
+  "type": "module",
+  "dependencies": {
+    "wrighter": "^1.0.0"
+  }
+}
