@@ -22,6 +22,7 @@
   },
   "type": "module",
   "dependencies": {
+    "memoir": "^1.0.9",
     "wrighter": "^1.0.0"
   }
 }
