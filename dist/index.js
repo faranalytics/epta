@@ -4,5 +4,5 @@ export { logger } from 'memoir';
 import { logger as log } from 'memoir';
 import { requestListener } from './routes.js';
 export function createRequestListener(router) {
-    return requestListener(router, { errorLog: log.error })();
+    return requestListener(router, { accessLog: log.debug, errorLog: log.error })();
 }

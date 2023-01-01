@@ -1,6 +1,6 @@
 export { createRoute } from 'wrighter';
-import { HTTP404Response, HTTPResponse } from './http_responses.js';
-import { createRoute } from 'wrighter';
+import { HTTPResponse } from './http_responses.js';
+import { createRoute, accept, deny } from 'wrighter';
 export class Context {
     toString() {
         try {
@@ -22,7 +22,7 @@ export let logRequestTo = createRoute(function logRequestTo(log, formatter) {
         else {
             log(`:${remoteAddress}:${req.method}:${url}`);
         }
-        return true;
+        return accept;
     };
 });
 export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) {
@@ -31,9 +31,9 @@ export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) 
             let _scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
             let url = new URL(req.url, `${_scheme}://${req.headers.host}`);
             ctx.url = url;
-            return scheme === _scheme && port === req.socket.localPort;
+            return scheme === _scheme && port === req.socket.localPort ? accept : deny;
         }
-        return false;
+        return deny;
     };
 });
 export let matchHost = createRoute(function matchHost(hostRegex) {
@@ -41,50 +41,42 @@ export let matchHost = createRoute(function matchHost(hostRegex) {
         if (req.url) {
             let url = new URL(req.url, `${ctx['scheme']}://${req.headers.host}`);
             ctx['url'] = url;
-            return hostRegex.test(url.hostname);
+            return hostRegex.test(url.hostname) ? accept : deny;
         }
-        return false;
+        return deny;
     };
 });
 export let matchMethod = createRoute(function matchMethod(methodRegex) {
     return async (req, res, ctx) => {
         if (req.method) {
-            return methodRegex.test(req.method);
+            return methodRegex.test(req.method) ? accept : deny;
         }
-        return false;
+        return deny;
     };
 });
 export let matchPath = createRoute(function matchPath(pathRegex) {
     return async (req, res, ctx) => {
         if (ctx?.url?.pathname) {
-            return pathRegex.test(ctx.url.pathname);
+            return pathRegex.test(ctx.url.pathname) ? accept : deny;
         }
-        return false;
+        return deny;
     };
 });
 export let routeTo = createRoute(function routeTo(fn) {
     return async (req, res, ctx) => {
-        let result = await fn(req, res, ctx);
-        if (typeof result == 'boolean') {
-            return result;
-        }
-        else {
-            return null;
-        }
+        return await fn(req, res, ctx);
     };
 });
 export let requestListener = createRoute(function requestListener(router, options) {
     return async (req, res) => {
         try {
             let result = await router(req, res, new Context());
-            if (result === false) {
-                throw new HTTP404Response();
-            }
-            else if (result === true) {
-                return true;
-            }
-            else {
-                return null;
+            if (typeof result == 'string') {
+                res.writeHead(200, {
+                    'Content-Length': Buffer.byteLength(result),
+                    'Content-Type': 'text/html'
+                });
+                res.end(result);
             }
         }
         catch (e) {
@@ -94,6 +86,7 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(e.message);
+                options.accessLog(e.message);
             }
             else {
                 let message = 'Internal Server Error';

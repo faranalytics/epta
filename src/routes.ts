@@ -1,7 +1,7 @@
 export { createRoute } from 'wrighter';
 import * as http from 'node:http';
 import { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
-import { createRoute } from 'wrighter';
+import { createRoute, accept, deny } from 'wrighter';
 
 export class Context {
 
@@ -17,7 +17,7 @@ export class Context {
     }
 }
 
-export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | undefined>;
+export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>;
 
 export let logRequestTo = createRoute<
     [
@@ -29,6 +29,7 @@ export let logRequestTo = createRoute<
             formatter?: (remoteAddress?: string, method?: string, url?: string) => string
         ) {
             return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
+
                 let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
                 let url = `${scheme}://${req.headers.host}${req.url}`;
                 let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
@@ -39,7 +40,7 @@ export let logRequestTo = createRoute<
                 else {
                     log(`:${remoteAddress}:${req.method}:${url}`);
                 }
-                return true;
+                return accept;
             }
         });
 
@@ -53,9 +54,9 @@ export let matchSchemePort = createRoute<[scheme: string, port: number], ReturnT
             let _scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
             let url = new URL(req.url, `${_scheme}://${req.headers.host}`);
             ctx.url = url;
-            return scheme === _scheme && port === req.socket.localPort;
+            return scheme === _scheme && port === req.socket.localPort ? accept : deny;
         }
-        return false;
+        return deny;
     }
 });
 
@@ -65,9 +66,9 @@ export let matchHost = createRoute<[hostRegex: RegExp], ReturnT>(function matchH
         if (req.url) {
             let url = new URL(req.url, `${ctx['scheme']}://${req.headers.host}`);
             ctx['url'] = url;
-            return hostRegex.test(url.hostname);
+            return hostRegex.test(url.hostname) ? accept : deny;
         }
-        return false;
+        return deny;
     }
 });
 
@@ -75,9 +76,9 @@ export let matchMethod = createRoute<[methodRegex: RegExp], ReturnT>(function ma
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
         if (req.method) {
-            return methodRegex.test(req.method);
+            return methodRegex.test(req.method) ? accept : deny;
         }
-        return false;
+        return deny;
     }
 });
 
@@ -85,49 +86,44 @@ export let matchPath = createRoute<[pathRegex: RegExp], ReturnT>(function matchP
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
         if (ctx?.url?.pathname) {
-            return pathRegex.test(ctx.url.pathname);
+            return pathRegex.test(ctx.url.pathname) ? accept : deny;
         }
-        return false;
+        return deny;
     }
 });
 
 export let routeTo = createRoute<[
-    (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | void>],
+    (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>],
     ReturnT>(function routeTo(fn) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
-            let result = await fn(req, res, ctx);
-
-            if (typeof result == 'boolean') {
-                return result;
-            }
-            else {
-                return null;
-            }
+            return await fn(req, res, ctx);
         }
     });
 
 export let requestListener = createRoute<
     [
-        router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | void>,
-        options: { errorLog: (error: string) => void }
+        router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>,
+        options: { accessLog: (message: string) => void, errorLog: (message: string) => void }
     ],
     (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>
 >(function requestListener(router, options) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
+
         try {
             let result = await router(req, res, new Context());
 
-            if (result === false) {
-                throw new HTTP404Response();
+            if (typeof result == 'string') {
+
+                res.writeHead(200, {
+                    'Content-Length': Buffer.byteLength(result),
+                    'Content-Type': 'text/html'
+                });
+
+                res.end(result);
             }
-            else if (result === true) {
-                return true;
-            }
-            else {
-                return null;
-            }
+
         }
         catch (e: unknown) {
 
@@ -139,6 +135,8 @@ export let requestListener = createRoute<
                 });
 
                 res.end(e.message);
+
+                options.accessLog(e.message);
             }
             else {
                 let message = 'Internal Server Error';

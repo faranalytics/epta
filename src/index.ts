@@ -17,5 +17,5 @@ import { requestListener, ReturnT } from './routes.js';
 
 
 export function createRequestListener(router: ReturnT) {
-    return requestListener(router, {errorLog:log.error})();
+    return requestListener(router, {accessLog:log.debug, errorLog:log.error})();
 }
