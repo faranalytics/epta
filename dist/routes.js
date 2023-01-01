@@ -64,7 +64,7 @@ export let matchPath = createRoute(function matchPath(pathRegex) {
 });
 export let routeTo = createRoute(function routeTo(fn) {
     return async (req, res, ctx) => {
-        let result = fn(req, res, ctx);
+        let result = await fn(req, res, ctx);
         if (typeof result == 'boolean') {
             return result;
         }

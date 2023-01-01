@@ -92,11 +92,11 @@ export let matchPath = createRoute<[pathRegex: RegExp], ReturnT>(function matchP
 });
 
 export let routeTo = createRoute<[
-    (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => boolean | null | void],
+    (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | void>],
     ReturnT>(function routeTo(fn) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
-            let result = fn(req, res, ctx);
+            let result = await fn(req, res, ctx);
 
             if (typeof result == 'boolean') {
                 return result;
@@ -107,54 +107,53 @@ export let routeTo = createRoute<[
         }
     });
 
-export let requestListener = createRoute <
+export let requestListener = createRoute<
     [
         router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | void>,
         options: { errorLog: (error: string) => void }
     ],
-(req: http.IncomingMessage, res: http.ServerResponse) => Promise < any >
-> (function requestListener(router, options) {
-    
-        return async (req: http.IncomingMessage, res: http.ServerResponse) => {
-            try {
-                let result = await router(req, res, new Context());
+    (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>
+>(function requestListener(router, options) {
 
-                if (result === false) {
-                    throw new HTTP404Response();
-                }
-                else if (result === true) {
-                    return true;
-                }
-                else {
-                    return null;
-                }
+    return async (req: http.IncomingMessage, res: http.ServerResponse) => {
+        try {
+            let result = await router(req, res, new Context());
+
+            if (result === false) {
+                throw new HTTP404Response();
             }
-            catch (e: unknown) {
+            else if (result === true) {
+                return true;
+            }
+            else {
+                return null;
+            }
+        }
+        catch (e: unknown) {
 
-                if (e instanceof HTTPResponse) {
+            if (e instanceof HTTPResponse) {
 
-                    res.writeHead(e.code, {
-                        'Content-Length': Buffer.byteLength(e.message),
-                        'Content-Type': 'text/html'
-                    });
+                res.writeHead(e.code, {
+                    'Content-Length': Buffer.byteLength(e.message),
+                    'Content-Type': 'text/html'
+                });
 
-                    res.end(e.message);
-                }
-                else {
-                    let message = 'Internal Server Error';
+                res.end(e.message);
+            }
+            else {
+                let message = 'Internal Server Error';
 
-                    res.writeHead(500, {
-                        'Content-Length': Buffer.byteLength(message),
-                        'Content-Type': 'text/html'
-                    });
+                res.writeHead(500, {
+                    'Content-Length': Buffer.byteLength(message),
+                    'Content-Type': 'text/html'
+                });
 
-                    res.end(message);
+                res.end(message);
 
-                    if (e instanceof Error) {
-                        options.errorLog(e.stack ? e.stack : e.message);
-                    }
+                if (e instanceof Error) {
+                    options.errorLog(e.stack ? e.stack : e.message);
                 }
             }
         }
     }
-    );
+});
