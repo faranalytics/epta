@@ -1,6 +1,5 @@
 export { createRoute } from 'wrighter';
 import { HTTP404Response, HTTPResponse } from './http_responses.js';
-import { logger as log } from 'memoir';
 import { createRoute } from 'wrighter';
 export class Context {
     toString() {
@@ -12,12 +11,80 @@ export class Context {
         }
     }
 }
-export function httpAdapter(router) {
-    return async function (req, res) {
+export let logRequestTo = createRoute(function logRequestTo(log, formatter) {
+    return async (req, res, ctx) => {
+        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+        let url = `${scheme}://${req.headers.host}${req.url}`;
+        let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
+        if (formatter) {
+            log(formatter(remoteAddress, req.method, url));
+        }
+        else {
+            log(`:${remoteAddress}:${req.method}:${url}`);
+        }
+        return true;
+    };
+});
+export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) {
+    return async (req, res, ctx) => {
+        if (req.url) {
+            let _scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+            let url = new URL(req.url, `${_scheme}://${req.headers.host}`);
+            ctx.url = url;
+            return scheme === _scheme && port === req.socket.localPort;
+        }
+        return false;
+    };
+});
+export let matchHost = createRoute(function matchHost(hostRegex) {
+    return async (req, res, ctx) => {
+        if (req.url) {
+            let url = new URL(req.url, `${ctx['scheme']}://${req.headers.host}`);
+            ctx['url'] = url;
+            return hostRegex.test(url.hostname);
+        }
+        return false;
+    };
+});
+export let matchMethod = createRoute(function matchMethod(methodRegex) {
+    return async (req, res, ctx) => {
+        if (req.method) {
+            return methodRegex.test(req.method);
+        }
+        return false;
+    };
+});
+export let matchPath = createRoute(function matchPath(pathRegex) {
+    return async (req, res, ctx) => {
+        if (ctx?.url?.pathname) {
+            return pathRegex.test(ctx.url.pathname);
+        }
+        return false;
+    };
+});
+export let routeTo = createRoute(function routeTo(fn) {
+    return async (req, res, ctx) => {
+        let result = fn(req, res, ctx);
+        if (typeof result == 'boolean') {
+            return result;
+        }
+        else {
+            return null;
+        }
+    };
+});
+export let requestListener = createRoute(function requestListener(router, options) {
+    return async (req, res) => {
         try {
             let result = await router(req, res, new Context());
             if (result === false) {
                 throw new HTTP404Response();
+            }
+            else if (result === true) {
+                return true;
+            }
+            else {
+                return null;
             }
         }
         catch (e) {
@@ -36,47 +103,9 @@ export function httpAdapter(router) {
                 });
                 res.end(message);
                 if (e instanceof Error) {
-                    log.debug(e.stack ? e.stack : e.message);
+                    options.errorLog(e.stack ? e.stack : e.message);
                 }
             }
         }
     };
-}
-export let logRequest = createRoute(function logRequest(req, res, ctx, log) {
-    let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-    log(`${scheme}://${req.headers.host}${req.url}`);
-    return true;
-});
-export let matchSchemePort = createRoute(function matchSchemePort(req, res, ctx, scheme, port) {
-    if (req.url) {
-        let _scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-        let url = new URL(req.url, `${_scheme}://${req.headers.host}`);
-        ctx.url = url;
-        return scheme === _scheme && port === req.socket.localPort;
-    }
-    return false;
-});
-export let matchHost = createRoute(function matchHost(req, res, ctx, hostRegex) {
-    if (req.url) {
-        let url = new URL(req.url, `${ctx['scheme']}://${req.headers.host}`);
-        ctx['url'] = url;
-        return hostRegex.test(url.hostname);
-    }
-    return false;
-});
-export let matchMethod = createRoute(function matchMethod(req, res, ctx, methodRegex) {
-    if (req.method) {
-        return methodRegex.test(req.method);
-    }
-    return false;
-});
-export let matchPath = createRoute(function matchPath(req, res, ctx, pathRegex) {
-    if (ctx?.url?.pathname) {
-        return pathRegex.test(ctx.url.pathname);
-    }
-    return false;
-});
-export let routeTo = createRoute(function routeTo(req, res, ctx, fn) {
-    fn(req, res, ctx);
-    return null;
 });

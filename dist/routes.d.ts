@@ -5,16 +5,14 @@ export declare class Context {
     [key: string]: any;
     toString(): string;
 }
-type T = [
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-    ctx: Context
-];
-export declare function httpAdapter(router: (...args: T) => Promise<boolean | void | null>): (req: http.IncomingMessage, res: http.ServerResponse) => Promise<void>;
-export declare let logRequest: (log: (message: string) => void) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
-export declare let matchSchemePort: (scheme: string, port: number) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
-export declare let matchHost: (hostRegex: RegExp) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
-export declare let matchMethod: (methodRegex: RegExp) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
-export declare let matchPath: (pathRegex: RegExp) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
-export declare let routeTo: (routeArgs_0: (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => void) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse<http.IncomingMessage>, ctx: Context) => Promise<boolean | void | null>;
+export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | undefined>;
+export declare let logRequestTo: (log: (message: string) => void, formatter?: ((remoteAddress?: string, method?: string, url?: string) => string) | undefined) => (..._routes: any[]) => ReturnT;
+export declare let matchSchemePort: (scheme: string, port: number) => (..._routes: any[]) => ReturnT;
+export declare let matchHost: (hostRegex: RegExp) => (..._routes: any[]) => ReturnT;
+export declare let matchMethod: (methodRegex: RegExp) => (..._routes: any[]) => ReturnT;
+export declare let matchPath: (pathRegex: RegExp) => (..._routes: any[]) => ReturnT;
+export declare let routeTo: (args_0: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => boolean | null | void) => (..._routes: any[]) => ReturnT;
+export declare let requestListener: (router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<boolean | null | void>, options: {
+    errorLog: (error: string) => void;
+}) => (..._routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>;
 //# sourceMappingURL=routes.d.ts.map
