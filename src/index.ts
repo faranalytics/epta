@@ -9,8 +9,8 @@ export {
     routeTo,
     Context
 } from './routes.js';
-
 export { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
+export {logger} from 'memoir';
 
 import { logger as log } from 'memoir';
 import { requestListener, ReturnT } from './routes.js';
