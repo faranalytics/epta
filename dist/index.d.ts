@@ -1,8 +1,6 @@
-import { ReturnT } from './routes.js';
-export declare function createRequestListener(router: ReturnT, options?: {
-    accessLog: (message: string) => void;
-    errorLog: (message: string) => void;
-}): (req: import("http").IncomingMessage, res: import("http").ServerResponse<import("http").IncomingMessage>) => Promise<any>;
+/// <reference types="node" />
+import { ReturnT, RequestListenerOptions } from './routes.js';
+export declare function createRequestListener(router: ReturnT, options: RequestListenerOptions): (req: import("http").IncomingMessage, res: import("http").ServerResponse<import("http").IncomingMessage>) => Promise<any>;
 export { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
 export { logger } from 'wrighter';
 export { requestListener, createRoute, matchHost, matchMethod, matchPath, matchSchemePort, routeTo, Context } from './routes.js';

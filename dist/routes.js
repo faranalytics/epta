@@ -2,6 +2,7 @@ import { HTTPResponse } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
 export { createRoute, logger } from 'wrighter';
 export class Context {
+    url;
     toString() {
         try {
             return JSON.stringify(this);
@@ -55,12 +56,19 @@ export let routeTo = createRoute(function routeTo(fn) {
 });
 export let requestListener = createRoute(function requestListener(router, options) {
     return async (req, res) => {
+        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+        let loggerMeta = {
+            scheme,
+            url: `${scheme}://${req.headers.host}${req.url}`,
+            method: req.method,
+            remoteAddress: `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`,
+            remotePort: req.socket.remotePort,
+            localAddress: req.socket.localAddress,
+            localPort: req.socket.localPort
+        };
         try {
-            let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-            let url = `${scheme}://${req.headers.host}${req.url}`;
-            let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
-            if (options.accessLog) {
-                options.accessLog(`:${remoteAddress}:${req.method}:${url}`);
+            if (typeof options.requestLogger == 'function') {
+                options.requestLogger(loggerMeta);
             }
             let result = await router(req, res, new Context());
             if (typeof result == 'string') {
@@ -70,6 +78,10 @@ export let requestListener = createRoute(function requestListener(router, option
                 });
                 res.end(result);
             }
+            loggerMeta.statusCode = res.statusCode;
+            if (typeof options.responseLogger == 'function') {
+                options.responseLogger(loggerMeta);
+            }
         }
         catch (e) {
             if (e instanceof HTTPResponse) {
@@ -78,7 +90,10 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(e.message);
-                options.accessLog(e.message);
+                loggerMeta.errorMessage = e.message;
+                if (typeof options.errorLogger == 'function') {
+                    options.errorLogger(loggerMeta);
+                }
             }
             else {
                 let message = 'Internal Server Error';
@@ -87,8 +102,12 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(message);
-                if (e instanceof Error) {
-                    options.errorLog(e.stack ? e.stack : e.message);
+                if (typeof options.errorLogger == 'function') {
+                    if (e instanceof Error) {
+                        loggerMeta.errorStack = e.stack;
+                        loggerMeta.errorMessage = e.message;
+                    }
+                    options.errorLogger(loggerMeta);
                 }
             }
         }

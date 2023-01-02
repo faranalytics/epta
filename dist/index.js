@@ -1,6 +1,5 @@
-import { logger as log } from 'wrighter';
 import { requestListener } from './routes.js';
-export function createRequestListener(router, options = { accessLog: log.debug, errorLog: log.error }) {
+export function createRequestListener(router, options) {
     return requestListener(router, options)();
 }
 export { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';

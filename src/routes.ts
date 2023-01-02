@@ -7,6 +7,7 @@ export { createRoute, logger } from 'wrighter';
 export class Context {
 
     [key: string]: any;
+    url?: URL;
 
     toString() {
         try {
@@ -20,9 +21,9 @@ export class Context {
 
 export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>;
 
-export let matchSchemePort = createRoute<[scheme: string, port: number], ReturnT>(function matchSchemePort(
-    scheme: string,
-    port: number
+export let matchSchemePort = createRoute<[scheme: 'http' | 'https', port: number], ReturnT>(function matchSchemePort(
+    scheme,
+    port
 ) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
@@ -36,7 +37,7 @@ export let matchSchemePort = createRoute<[scheme: string, port: number], ReturnT
     }
 });
 
-export let matchHost = createRoute<[hostRegex: RegExp], ReturnT>(function matchHost(hostRegex: RegExp) {
+export let matchHost = createRoute<[hostRegex: RegExp], ReturnT>(function matchHost(hostRegex) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
         if (req.url) {
@@ -48,7 +49,7 @@ export let matchHost = createRoute<[hostRegex: RegExp], ReturnT>(function matchH
     }
 });
 
-export let matchMethod = createRoute<[methodRegex: RegExp], ReturnT>(function matchMethod(methodRegex: RegExp) {
+export let matchMethod = createRoute<[methodRegex: RegExp], ReturnT>(function matchMethod(methodRegex) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
         if (req.method) {
@@ -58,7 +59,7 @@ export let matchMethod = createRoute<[methodRegex: RegExp], ReturnT>(function ma
     }
 });
 
-export let matchPath = createRoute<[pathRegex: RegExp], ReturnT>(function matchPath(pathRegex: RegExp) {
+export let matchPath = createRoute<[pathRegex: RegExp], ReturnT>(function matchPath(pathRegex) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
         if (ctx?.url?.pathname) {
@@ -77,24 +78,51 @@ export let routeTo = createRoute<[
         }
     });
 
+export interface LoggerMeta {
+    scheme: string;
+    url: string;
+    method?: string;
+    remoteAddress?: string;
+    remotePort?: number;
+    localAddress?: string;
+    localPort?: number;
+    statusCode?: number;
+    errorMessage?: string;
+    errorStack?: string;
+}
+
+export interface RequestListenerOptions {
+    requestLogger?: (meta: LoggerMeta) => void,
+    responseLogger?: (meta: LoggerMeta) => void,
+    errorLogger?: (meta: LoggerMeta) => void
+}
+
 export let requestListener = createRoute<
     [
         router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>,
-        options: { accessLog: (message: string) => void, errorLog: (message: string) => void }
+        options: RequestListenerOptions
     ],
     (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>
 >(function requestListener(router, options) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
 
+        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+
+        let loggerMeta: LoggerMeta = {
+            scheme,
+            url: `${scheme}://${req.headers.host}${req.url}`,
+            method: req.method,
+            remoteAddress: `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`,
+            remotePort: req.socket.remotePort,
+            localAddress: req.socket.localAddress,
+            localPort: req.socket.localPort
+        }
+
         try {
 
-            let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-            let url = `${scheme}://${req.headers.host}${req.url}`;
-            let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
-
-            if (options.accessLog) {
-                options.accessLog(`:${remoteAddress}:${req.method}:${url}`);
+            if (typeof options.requestLogger == 'function') {
+                options.requestLogger(loggerMeta);
             }
 
             let result = await router(req, res, new Context());
@@ -109,6 +137,11 @@ export let requestListener = createRoute<
                 res.end(result);
             }
 
+            loggerMeta.statusCode = res.statusCode;
+
+            if (typeof options.responseLogger == 'function') {
+                options.responseLogger(loggerMeta);
+            }
         }
         catch (e: unknown) {
 
@@ -121,7 +154,11 @@ export let requestListener = createRoute<
 
                 res.end(e.message);
 
-                options.accessLog(e.message);
+                loggerMeta.errorMessage = e.message;
+
+                if (typeof options.errorLogger == 'function') {
+                    options.errorLogger(loggerMeta);
+                }
             }
             else {
                 let message = 'Internal Server Error';
@@ -133,8 +170,14 @@ export let requestListener = createRoute<
 
                 res.end(message);
 
-                if (e instanceof Error) {
-                    options.errorLog(e.stack ? e.stack : e.message);
+                if (typeof options.errorLogger == 'function') {
+
+                    if (e instanceof Error) {
+                        loggerMeta.errorStack = e.stack;
+                        loggerMeta.errorMessage = e.message;
+                    }
+
+                    options.errorLogger(loggerMeta);
                 }
             }
         }
