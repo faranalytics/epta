@@ -9,6 +9,7 @@ export { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses
 export { logger } from 'wrighter';
 export {
     requestListener,
+    RequestListenerOptions,
     createRoute,
     matchHost,
     matchMethod,
