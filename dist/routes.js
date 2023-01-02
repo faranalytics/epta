@@ -73,8 +73,8 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(e.message);
-                if (typeof options.events.error == 'function') {
-                    options.events.error(req, res, ctx, e);
+                if (typeof options.events.response == 'function') {
+                    options.events.response(req, res, ctx, e);
                 }
             }
             else {

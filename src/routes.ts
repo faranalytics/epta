@@ -80,7 +80,7 @@ export let routeTo = createRoute<[
 
 export interface RequestListenerEvents {
     request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
-    response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
+    response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context, httpResponse?: HTTPResponse) => void;
     error?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context, error: Error) => void;
 }
 
@@ -122,8 +122,8 @@ export let requestListener = createRoute<
 
                 res.end(e.message);
 
-                if (typeof options.events.error == 'function') {
-                    options.events.error(req, res, ctx, e);
+                if (typeof options.events.response == 'function') {
+                    options.events.response(req, res, ctx, e);
                 }
             }
             else {
