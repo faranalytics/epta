@@ -1,12 +1,11 @@
 /// <reference types="node" />
-export { createRoute } from 'wrighter';
 import * as http from 'node:http';
+export { createRoute, logger } from 'wrighter';
 export declare class Context {
     [key: string]: any;
     toString(): string;
 }
 export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>;
-export declare let logRequestTo: (log: (message: string) => void, formatter?: ((remoteAddress?: string, method?: string, url?: string) => string) | undefined) => (..._routes: any[]) => ReturnT;
 export declare let matchSchemePort: (scheme: string, port: number) => (..._routes: any[]) => ReturnT;
 export declare let matchHost: (hostRegex: RegExp) => (..._routes: any[]) => ReturnT;
 export declare let matchMethod: (methodRegex: RegExp) => (..._routes: any[]) => ReturnT;

@@ -1,7 +1,8 @@
-export { createRoute } from 'wrighter';
 import * as http from 'node:http';
 import { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
+
+export { createRoute, logger } from 'wrighter';
 
 export class Context {
 
@@ -18,31 +19,6 @@ export class Context {
 }
 
 export type ReturnT = (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>;
-
-export let logRequestTo = createRoute<
-    [
-        log: (message: string) => void,
-        formatter?: (remoteAddress?: string, method?: string, url?: string) => string
-    ], ReturnT>(
-        function logRequestTo(
-            log: (message: any) => void,
-            formatter?: (remoteAddress?: string, method?: string, url?: string) => string
-        ) {
-            return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
-
-                let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-                let url = `${scheme}://${req.headers.host}${req.url}`;
-                let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
-
-                if (formatter) {
-                    log(formatter(remoteAddress, req.method, url));
-                }
-                else {
-                    log(`:${remoteAddress}:${req.method}:${url}`);
-                }
-                return accept;
-            }
-        });
 
 export let matchSchemePort = createRoute<[scheme: string, port: number], ReturnT>(function matchSchemePort(
     scheme: string,
@@ -112,6 +88,15 @@ export let requestListener = createRoute<
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
 
         try {
+
+            let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+            let url = `${scheme}://${req.headers.host}${req.url}`;
+            let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
+
+            if (options.accessLog) {
+                options.accessLog(`:${remoteAddress}:${req.method}:${url}`);
+            }
+
             let result = await router(req, res, new Context());
 
             if (typeof result == 'string') {

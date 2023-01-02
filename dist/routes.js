@@ -1,6 +1,6 @@
-export { createRoute } from 'wrighter';
 import { HTTPResponse } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
+export { createRoute, logger } from 'wrighter';
 export class Context {
     toString() {
         try {
@@ -11,20 +11,6 @@ export class Context {
         }
     }
 }
-export let logRequestTo = createRoute(function logRequestTo(log, formatter) {
-    return async (req, res, ctx) => {
-        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-        let url = `${scheme}://${req.headers.host}${req.url}`;
-        let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
-        if (formatter) {
-            log(formatter(remoteAddress, req.method, url));
-        }
-        else {
-            log(`:${remoteAddress}:${req.method}:${url}`);
-        }
-        return accept;
-    };
-});
 export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) {
     return async (req, res, ctx) => {
         if (req.url) {
@@ -70,6 +56,12 @@ export let routeTo = createRoute(function routeTo(fn) {
 export let requestListener = createRoute(function requestListener(router, options) {
     return async (req, res) => {
         try {
+            let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
+            let url = `${scheme}://${req.headers.host}${req.url}`;
+            let remoteAddress = `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`;
+            if (options.accessLog) {
+                options.accessLog(`:${remoteAddress}:${req.method}:${url}`);
+            }
             let result = await router(req, res, new Context());
             if (typeof result == 'string') {
                 res.writeHead(200, {
