@@ -78,19 +78,6 @@ export let routeTo = createRoute<[
         }
     });
 
-export interface LoggerMeta {
-    scheme: string;
-    url: string;
-    method?: string;
-    remoteAddress?: string;
-    remotePort?: number;
-    localAddress?: string;
-    localPort?: number;
-    statusCode?: number;
-    errorMessage?: string;
-    errorStack?: string;
-}
-
 export interface RequestListenerEvents {
     request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
     response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;

@@ -12,18 +12,6 @@ export declare let matchHost: (hostRegex: RegExp) => (...routes: any[]) => Retur
 export declare let matchMethod: (methodRegex: RegExp) => (...routes: any[]) => ReturnT;
 export declare let matchPath: (pathRegex: RegExp) => (...routes: any[]) => ReturnT;
 export declare let routeTo: (args_0: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>) => (...routes: any[]) => ReturnT;
-export interface LoggerMeta {
-    scheme: string;
-    url: string;
-    method?: string;
-    remoteAddress?: string;
-    remotePort?: number;
-    localAddress?: string;
-    localPort?: number;
-    statusCode?: number;
-    errorMessage?: string;
-    errorStack?: string;
-}
 export interface RequestListenerEvents {
     request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
     response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
