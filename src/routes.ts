@@ -91,10 +91,14 @@ export interface LoggerMeta {
     errorStack?: string;
 }
 
+export interface RequestListenerEvents {
+    request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
+    response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
+    error?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context, error: Error) => void;
+}
+
 export interface RequestListenerOptions {
-    requestLogger?: (meta: LoggerMeta) => void,
-    responseLogger?: (meta: LoggerMeta) => void,
-    errorLogger?: (meta: LoggerMeta) => void
+    events:RequestListenerEvents;
 }
 
 export let requestListener = createRoute<
@@ -106,41 +110,18 @@ export let requestListener = createRoute<
 >(function requestListener(router, options) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
-
-        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-
-        let loggerMeta: LoggerMeta = {
-            scheme,
-            url: `${scheme}://${req.headers.host}${req.url}`,
-            method: req.method,
-            remoteAddress: `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`,
-            remotePort: req.socket.remotePort,
-            localAddress: req.socket.localAddress,
-            localPort: req.socket.localPort
-        }
+        
+        let ctx = new Context();
 
         try {
-
-            if (typeof options.requestLogger == 'function') {
-                options.requestLogger(loggerMeta);
+            if (typeof options.events.request == 'function') {
+                options.events.request(req, res, ctx);
             }
 
-            let result = await router(req, res, new Context());
+            await router(req, res, ctx);
 
-            if (typeof result == 'string') {
-
-                res.writeHead(200, {
-                    'Content-Length': Buffer.byteLength(result),
-                    'Content-Type': 'text/html'
-                });
-
-                res.end(result);
-            }
-
-            loggerMeta.statusCode = res.statusCode;
-
-            if (typeof options.responseLogger == 'function') {
-                options.responseLogger(loggerMeta);
+            if (typeof options.events.response == 'function') {
+                options.events.response(req, res, ctx);
             }
         }
         catch (e: unknown) {
@@ -154,10 +135,8 @@ export let requestListener = createRoute<
 
                 res.end(e.message);
 
-                loggerMeta.errorMessage = e.message;
-
-                if (typeof options.errorLogger == 'function') {
-                    options.errorLogger(loggerMeta);
+                if (typeof options.events.error == 'function') {
+                    options.events.error(req, res, ctx, e);
                 }
             }
             else {
@@ -170,14 +149,8 @@ export let requestListener = createRoute<
 
                 res.end(message);
 
-                if (typeof options.errorLogger == 'function') {
-
-                    if (e instanceof Error) {
-                        loggerMeta.errorStack = e.stack;
-                        loggerMeta.errorMessage = e.message;
-                    }
-
-                    options.errorLogger(loggerMeta);
+                if (e instanceof Error && typeof options.events.error == 'function') {
+                    options.events.error(req, res, ctx, e);
                 }
             }
         }

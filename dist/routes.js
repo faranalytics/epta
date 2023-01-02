@@ -56,31 +56,14 @@ export let routeTo = createRoute(function routeTo(fn) {
 });
 export let requestListener = createRoute(function requestListener(router, options) {
     return async (req, res) => {
-        let scheme = Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http';
-        let loggerMeta = {
-            scheme,
-            url: `${scheme}://${req.headers.host}${req.url}`,
-            method: req.method,
-            remoteAddress: `${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`,
-            remotePort: req.socket.remotePort,
-            localAddress: req.socket.localAddress,
-            localPort: req.socket.localPort
-        };
+        let ctx = new Context();
         try {
-            if (typeof options.requestLogger == 'function') {
-                options.requestLogger(loggerMeta);
+            if (typeof options.events.request == 'function') {
+                options.events.request(req, res, ctx);
             }
-            let result = await router(req, res, new Context());
-            if (typeof result == 'string') {
-                res.writeHead(200, {
-                    'Content-Length': Buffer.byteLength(result),
-                    'Content-Type': 'text/html'
-                });
-                res.end(result);
-            }
-            loggerMeta.statusCode = res.statusCode;
-            if (typeof options.responseLogger == 'function') {
-                options.responseLogger(loggerMeta);
+            await router(req, res, ctx);
+            if (typeof options.events.response == 'function') {
+                options.events.response(req, res, ctx);
             }
         }
         catch (e) {
@@ -90,9 +73,8 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(e.message);
-                loggerMeta.errorMessage = e.message;
-                if (typeof options.errorLogger == 'function') {
-                    options.errorLogger(loggerMeta);
+                if (typeof options.events.error == 'function') {
+                    options.events.error(req, res, ctx, e);
                 }
             }
             else {
@@ -102,12 +84,8 @@ export let requestListener = createRoute(function requestListener(router, option
                     'Content-Type': 'text/html'
                 });
                 res.end(message);
-                if (typeof options.errorLogger == 'function') {
-                    if (e instanceof Error) {
-                        loggerMeta.errorStack = e.stack;
-                        loggerMeta.errorMessage = e.message;
-                    }
-                    options.errorLogger(loggerMeta);
+                if (e instanceof Error && typeof options.events.error == 'function') {
+                    options.events.error(req, res, ctx, e);
                 }
             }
         }

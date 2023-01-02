@@ -24,10 +24,13 @@ export interface LoggerMeta {
     errorMessage?: string;
     errorStack?: string;
 }
+export interface RequestListenerEvents {
+    request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
+    response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
+    error?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context, error: Error) => void;
+}
 export interface RequestListenerOptions {
-    requestLogger?: (meta: LoggerMeta) => void;
-    responseLogger?: (meta: LoggerMeta) => void;
-    errorLogger?: (meta: LoggerMeta) => void;
+    events: RequestListenerEvents;
 }
 export declare let requestListener: (router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>, options: RequestListenerOptions) => (...routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>;
 //# sourceMappingURL=routes.d.ts.map
