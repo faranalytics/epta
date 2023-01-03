@@ -121,17 +121,21 @@ export let requestListener = createRoute<
                 });
 
                 res.end(result.message);
+
+                if (typeof options.events.response == 'function') {
+                    options.events.response(req, res, ctx, result);
+                }
             }
             else if (result == accept) {
                 /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
+
+                if (typeof options.events.response == 'function') {
+                    options.events.response(req, res, ctx);
+                }
             }
             else {
                 throw new HTTP404Response();
                 /*The handler neither indicated that it would handle the reponse nor did it request content negotiation.*/
-            }
-
-            if (typeof options.events.response == 'function') {
-                options.events.response(req, res, ctx);
             }
         }
         catch (e: unknown) {
@@ -162,6 +166,9 @@ export let requestListener = createRoute<
                 if (typeof options.events.error == 'function') {
                     options.events.error(req, res, ctx, e);
                 }
+            }
+            else {
+                throw e;
             }
         }
     }
