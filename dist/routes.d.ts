@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import * as http from 'node:http';
 import { HTTPResponse } from './http_responses.js';
-export { createRoute, logger } from 'wrighter';
+export { createRoute, logger as log } from 'wrighter';
 export declare class Context {
     [key: string]: any;
     url?: URL;
@@ -20,6 +20,7 @@ export interface RequestListenerEvents {
 }
 export interface RequestListenerOptions {
     events: RequestListenerEvents;
+    timeout: number;
 }
 export declare let requestListener: (router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>, options: RequestListenerOptions) => (...routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>;
 //# sourceMappingURL=routes.d.ts.map

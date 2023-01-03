@@ -1,28 +1,23 @@
-export class HTTPResponse extends Error {
-    code = 500;
-    constructor(message, cause) {
-        if (!message) {
-            message = '500 Internal Server Error';
-        }
-        super(message, cause);
-        this.code = 500;
+export class HTTPResponse {
+    code;
+    message;
+    constructor(code, message) {
+        this.code = code;
+        this.message = message;
+    }
+}
+export class HTTP200Response extends HTTPResponse {
+    constructor(message = '200 OK') {
+        super(200, message);
     }
 }
 export class HTTP404Response extends HTTPResponse {
-    constructor(message, cause) {
-        if (!message) {
-            message = '404 Not Found';
-        }
-        super(message, cause);
-        this.code = 400;
+    constructor(message = '404 Not Found') {
+        super(404, message);
     }
 }
 export class HTTP500Response extends HTTPResponse {
-    constructor(message, cause) {
-        if (!message) {
-            message = '500 Internal Server Error';
-        }
-        super(message, cause);
-        this.code = 500;
+    constructor(message = '500 Internal Server Error') {
+        super(500, message);
     }
 }

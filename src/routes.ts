@@ -1,8 +1,8 @@
 import * as http from 'node:http';
-import { HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
+import { HTTP200Response, HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
 
-export { createRoute, logger } from 'wrighter';
+export { createRoute, logger as log } from 'wrighter';
 
 export class Context {
 
@@ -74,7 +74,14 @@ export let routeTo = createRoute<[
     ReturnT>(function routeTo(fn) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => {
 
-            return await fn(req, res, ctx);
+            let result = await fn(req, res, ctx);
+
+            if (result instanceof HTTPResponse) {
+                return result;
+            }
+            else {
+                return accept;
+            }
         }
     });
 
@@ -85,7 +92,8 @@ export interface RequestListenerEvents {
 }
 
 export interface RequestListenerOptions {
-    events:RequestListenerEvents;
+    events: RequestListenerEvents;
+    timeout: number;
 }
 
 export let requestListener = createRoute<
@@ -96,16 +104,31 @@ export let requestListener = createRoute<
     (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>
 >(function requestListener(router, options) {
 
-    return async (req: http.IncomingMessage, res: http.ServerResponse) => {
-        
-        let ctx = new Context();
+    return async (req: http.IncomingMessage, res: http.ServerResponse, ctx = new Context()) => {
 
         try {
             if (typeof options.events.request == 'function') {
                 options.events.request(req, res, ctx);
             }
 
-            await router(req, res, ctx);
+            let result = await router(req, res, ctx);
+
+            if (result instanceof HTTPResponse) {
+                /*Content negotiation.*/
+                res.writeHead(result.code, {
+                    'Content-Length': Buffer.byteLength(result.message),
+                    'Content-Type': 'text/html'
+                });
+
+                res.end(result.message);
+            }
+            else if (result == accept) {
+                /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
+            }
+            else {
+                throw new HTTP404Response();
+                /*The handler neither indicated that it would handle the reponse nor did it request content negotiation.*/
+            }
 
             if (typeof options.events.response == 'function') {
                 options.events.response(req, res, ctx);
@@ -126,7 +149,7 @@ export let requestListener = createRoute<
                     options.events.response(req, res, ctx, e);
                 }
             }
-            else {
+            else if (e instanceof Error) {
                 let message = 'Internal Server Error';
 
                 res.writeHead(500, {
@@ -136,7 +159,7 @@ export let requestListener = createRoute<
 
                 res.end(message);
 
-                if (e instanceof Error && typeof options.events.error == 'function') {
+                if (typeof options.events.error == 'function') {
                     options.events.error(req, res, ctx, e);
                 }
             }
