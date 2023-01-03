@@ -1,4 +1,4 @@
-import { HTTP404Response, HTTPResponse } from './http_responses.js';
+import { HTTP200Response, HTTP404Response, HTTPResponse } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
 export { createRoute, logger as log } from 'wrighter';
 export class Context {
@@ -69,11 +69,18 @@ export let requestListener = createRoute(function requestListener(router, option
             let result = await router(req, res, ctx);
             if (result instanceof HTTPResponse) {
                 /*Content negotiation.*/
+                let body;
+                if (result instanceof HTTP200Response) {
+                    body = result.body;
+                }
+                else {
+                    body = result.message;
+                }
                 res.writeHead(result.code, {
-                    'Content-Length': Buffer.byteLength(result.message),
+                    'Content-Length': Buffer.byteLength(body),
                     'Content-Type': 'text/html'
                 });
-                res.end(result.message);
+                res.end(body);
                 if (typeof options.events.response == 'function') {
                     options.events.response(req, res, ctx, result);
                 }

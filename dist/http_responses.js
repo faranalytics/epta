@@ -7,17 +7,21 @@ export class HTTPResponse {
     }
 }
 export class HTTP200Response extends HTTPResponse {
-    constructor(message = '200 OK') {
-        super(200, message);
+    body;
+    contentType;
+    constructor(body, contentType) {
+        super(200, '200 OK');
+        this.body = body;
+        this.contentType = contentType;
     }
 }
 export class HTTP404Response extends HTTPResponse {
-    constructor(message = '404 Not Found') {
-        super(404, message);
+    constructor() {
+        super(404, '404 Not Found');
     }
 }
 export class HTTP500Response extends HTTPResponse {
-    constructor(message = '500 Internal Server Error') {
-        super(500, message);
+    constructor() {
+        super(500, '500 Internal Server Error');
     }
 }

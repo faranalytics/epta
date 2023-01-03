@@ -5,13 +5,15 @@ export declare class HTTPResponse {
     constructor(code: HTTPResponseCode, message: string);
 }
 export declare class HTTP200Response extends HTTPResponse {
-    constructor(message?: string);
+    body: string;
+    contentType?: string;
+    constructor(body: string, contentType?: string);
 }
 export declare class HTTP404Response extends HTTPResponse {
-    constructor(message?: string);
+    constructor();
 }
 export declare class HTTP500Response extends HTTPResponse {
-    constructor(message?: string);
+    constructor();
 }
 export {};
 //# sourceMappingURL=http_responses.d.ts.map

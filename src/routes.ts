@@ -115,12 +115,22 @@ export let requestListener = createRoute<
 
             if (result instanceof HTTPResponse) {
                 /*Content negotiation.*/
+                
+                let body;
+
+                if (result instanceof HTTP200Response) {
+                    body = result.body;
+                }
+                else {
+                    body = result.message;
+                }
+
                 res.writeHead(result.code, {
-                    'Content-Length': Buffer.byteLength(result.message),
+                    'Content-Length': Buffer.byteLength(body),
                     'Content-Type': 'text/html'
                 });
 
-                res.end(result.message);
+                res.end(body);
 
                 if (typeof options.events.response == 'function') {
                     options.events.response(req, res, ctx, result);
