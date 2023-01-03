@@ -24,4 +24,3 @@ export interface RequestListenerOptions {
     timeout: number;
 }
 export declare let requestListener: (router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>, options: RequestListenerOptions) => (...routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>;
-//# sourceMappingURL=routes.d.ts.map

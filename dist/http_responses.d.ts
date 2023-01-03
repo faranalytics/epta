@@ -29,4 +29,3 @@ export declare class HTTP500Response extends HTTPResponse {
     });
 }
 export {};
-//# sourceMappingURL=http_responses.d.ts.map

@@ -6,6 +6,7 @@ export {
     RequestListenerOptions,
     createRoute,
     matchHost,
+    redirectTo,
     matchMethod,
     matchPath,
     matchSchemePort,
