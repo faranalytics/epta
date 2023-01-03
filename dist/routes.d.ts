@@ -13,6 +13,7 @@ export declare let matchHost: (hostRegex: RegExp) => (...routes: any[]) => Retur
 export declare let matchMethod: (methodRegex: RegExp) => (...routes: any[]) => ReturnT;
 export declare let matchPath: (pathRegex: RegExp) => (...routes: any[]) => ReturnT;
 export declare let routeTo: (args_0: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>) => (...routes: any[]) => ReturnT;
+export declare let redirectTo: (location: string) => (...routes: any[]) => ReturnT;
 export interface RequestListenerEvents {
     request?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => void;
     response?: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context, httpResponse?: HTTPResponse) => void;

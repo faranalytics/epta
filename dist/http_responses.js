@@ -1,27 +1,39 @@
+;
 export class HTTPResponse {
     code;
-    message;
-    constructor(code, message) {
+    text;
+    body;
+    header;
+    constructor(code, text) {
         this.code = code;
-        this.message = message;
+        this.text = text;
     }
 }
 export class HTTP200Response extends HTTPResponse {
-    body;
-    contentType;
-    constructor(body, contentType) {
-        super(200, '200 OK');
+    constructor(body, header) {
+        super(200, 'OK');
         this.body = body;
-        this.contentType = contentType;
+        this.header = header;
+    }
+}
+export class HTTP301Response extends HTTPResponse {
+    header;
+    constructor(header) {
+        super(301, 'Moved Permanently');
+        this.header = header;
     }
 }
 export class HTTP404Response extends HTTPResponse {
-    constructor() {
-        super(404, '404 Not Found');
+    constructor(body, header) {
+        super(404, 'Not Found');
+        this.body = body;
+        this.header = header;
     }
 }
 export class HTTP500Response extends HTTPResponse {
-    constructor() {
-        super(500, '500 Internal Server Error');
+    constructor(body, header) {
+        super(500, 'Internal Server Error');
+        this.body = body;
+        this.header = header;
     }
 }
