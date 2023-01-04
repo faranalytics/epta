@@ -38,7 +38,7 @@ export let createRequestListener = (
             if (typeof options?.events?.request == 'function') {
                 options.events.request(req, res);
             }
-            
+
             response = await router(req, res);
 
             if (response === deny) {
@@ -54,10 +54,13 @@ export let createRequestListener = (
             }
         }
         finally {
-           if (response instanceof HTTPResponse) {
+            if (response instanceof HTTPResponse) {
+
                 let header = response.header;
                 let body = response.body ? response.body : response.text;
-                response.header['content-length'] = Buffer.byteLength(body)
+                
+                header['content-length'] = Buffer.byteLength(body);
+
                 res.writeHead(response.code, header);
                 res.end(body);
 
@@ -66,7 +69,9 @@ export let createRequestListener = (
                 }
             }
             else {
-                /* timeout */
+                if (options.responseTimeout) {
+
+                }
             }
         }
     }

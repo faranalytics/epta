@@ -27,7 +27,7 @@ export let createRequestListener = (router, options) => {
             if (response instanceof HTTPResponse) {
                 let header = response.header;
                 let body = response.body ? response.body : response.text;
-                response.header['content-length'] = Buffer.byteLength(body);
+                header['content-length'] = Buffer.byteLength(body);
                 res.writeHead(response.code, header);
                 res.end(body);
                 if (typeof options?.events?.response == 'function') {
@@ -35,7 +35,8 @@ export let createRequestListener = (router, options) => {
                 }
             }
             else {
-                /* timeout */
+                if (options.responseTimeout) {
+                }
             }
         }
     };
