@@ -23,4 +23,3 @@ export interface RequestListenerOptions {
     events: RequestListenerEvents;
     timeout: number;
 }
-export declare let requestListener: (router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>, options: RequestListenerOptions) => (...routes: any[]) => (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>;
