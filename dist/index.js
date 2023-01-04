@@ -36,16 +36,16 @@ export let createRequestListener = (router, options) => {
             }
         }
         finally {
-            if (result != accept) {
+            if (result == accept) {
+                /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
+            }
+            else {
                 header['content-length'] = Buffer.byteLength(body);
                 res.writeHead(code, header);
                 res.end(body);
                 if (typeof options?.events?.response == 'function') {
                     options.events.response(req, res, result);
                 }
-            }
-            else {
-                /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
             }
         }
     };

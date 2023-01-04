@@ -21,14 +21,12 @@ export class HTTP200Response extends HTTPResponse {
     }
 }
 
-
 export class HTTP301Response extends HTTPResponse {
     constructor(header: {location: string}) {
         super(301, 'Moved Permanently');
         this.header = header;
     }
 }
-
 
 export class HTTP404Response extends HTTPResponse {
     constructor(body?: string, header?: {location: string}) {
