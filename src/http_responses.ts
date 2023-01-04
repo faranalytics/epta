@@ -1,14 +1,12 @@
-type HTTPResponseCode = 200 | 301 | 404 | 500;
+import { OutgoingHttpHeaders } from "node:http";
 
-export interface Header { 
-    [name: string]: string | number | readonly string[] 
-};
+type HTTPResponseCode = 200 | 301 | 404 | 500;
 
 export abstract class HTTPResponse {
     public code: HTTPResponseCode;
     public text: string;
     public body?: string;
-    public header?: Header;
+    public header?: OutgoingHttpHeaders;
     constructor(code: HTTPResponseCode, text: string) {
         this.code = code;
         this.text=text;
@@ -16,7 +14,7 @@ export abstract class HTTPResponse {
 }
 
 export class HTTP200Response extends HTTPResponse {
-    constructor(body?: string, header?: Header) {
+    constructor(body?: string, header?: OutgoingHttpHeaders) {
         super(200, 'OK');
         this.body = body;
         this.header = header;
@@ -25,7 +23,6 @@ export class HTTP200Response extends HTTPResponse {
 
 
 export class HTTP301Response extends HTTPResponse {
-    public header: Header;
     constructor(header: {location: string}) {
         super(301, 'Moved Permanently');
         this.header = header;

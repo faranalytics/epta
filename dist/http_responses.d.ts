@@ -1,19 +1,17 @@
+/// <reference types="node" />
+import { OutgoingHttpHeaders } from "node:http";
 type HTTPResponseCode = 200 | 301 | 404 | 500;
-export interface Header {
-    [name: string]: string | number | readonly string[];
-}
 export declare abstract class HTTPResponse {
     code: HTTPResponseCode;
     text: string;
     body?: string;
-    header?: Header;
+    header?: OutgoingHttpHeaders;
     constructor(code: HTTPResponseCode, text: string);
 }
 export declare class HTTP200Response extends HTTPResponse {
-    constructor(body?: string, header?: Header);
+    constructor(body?: string, header?: OutgoingHttpHeaders);
 }
 export declare class HTTP301Response extends HTTPResponse {
-    header: Header;
     constructor(header: {
         location: string;
     });

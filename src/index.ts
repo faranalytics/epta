@@ -1,109 +1,84 @@
-import http from 'node:http';
-import { RequestListenerOptions, Context } from './routes.js';
+import http, { OutgoingHttpHeaders } from 'node:http';
 import { accept } from 'wrighter';
 import { HTTPResponse } from './http_responses.js';
 
 export { HTTP200Response, HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
 export { logger } from 'wrighter';
 export {
-    RequestListenerOptions,
     createRoute,
     matchHost,
     redirectTo,
     matchMethod,
     matchPath,
     matchSchemePort,
-    routeTo,
-    Context
+    routeTo
 } from './routes.js';
 
+export interface RequestListenerEvents {
+    request?: (req: http.IncomingMessage, res: http.ServerResponse) => void;
+    response?: (req: http.IncomingMessage, res: http.ServerResponse, httpResponse?: HTTPResponse) => void;
+    error?: (req: http.IncomingMessage, res: http.ServerResponse, error: Error) => void;
+}
+
+export interface RequestListenerOptions {
+    events?: RequestListenerEvents;
+    responseTimeout?: number;
+}
 
 export let createRequestListener = (
-    router: (req: http.IncomingMessage, res: http.ServerResponse, ctx: Context) => Promise<any>,
+    router: (req: http.IncomingMessage, res: http.ServerResponse) => Promise<any>,
     options: RequestListenerOptions
 ) => {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
 
-        let ctx = new Context();
+        let code: number = 500;
+        let header: OutgoingHttpHeaders = {};
+        let body: string = '';
+
+        let result: any;
 
         try {
-            if (typeof options.events.request == 'function') {
-                options.events.request(req, res, ctx);
+            if (typeof options?.events?.request == 'function') {
+                options.events.request(req, res);
             }
 
-            let result = await router(req, res, ctx);
+            result = await router(req, res);
 
-            if (result == accept) {
-                /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
-
-                if (typeof options.events.response == 'function') {
-                    options.events.response(req, res, ctx);
-                }
-            }
-            else if (result instanceof HTTPResponse) {
-
-                let body: string = result.body ? result.body : result.text;
-
-                if (result.header) {
-                    let keys = Object.keys(result.header);
-                    for (let i = 0; i < keys.length; i++) {
-                        let key = keys[i].toLowerCase();
-                        if (key !== keys[i]) {
-                            result.header[key] = result.header[keys[i]]
-                            delete result.header[keys[i]];
-                        }
-                        res.setHeader(key, result.header[key]);
-                    }
-                }
-
-                if (!result.header || !result.header['content-type']) {
-                    /* Content negotiation */
-                }
-
-                res.writeHead(result.code, {
-                    'Content-Length': Buffer.byteLength(body),
-                    'Content-Type': 'text/html'
-                });
-
-                res.end(body);
-
-                if (typeof options.events.response == 'function') {
-                    options.events.response(req, res, ctx, result);
-                }
+            if (result instanceof HTTPResponse) {
+                code = result.code;
+                body = result.body ? result.body : result.text;
+                header = result.header ? result.header : {};
             }
             else {
-                let body = 'Not Found';
-
-                // Inject the body into a default template.
-
-                res.writeHead(404, {
-                    'Content-Length': Buffer.byteLength(body),
-                    'Content-Type': 'text/html'
-                });
-
-                res.end(body);
+                code = 404;
+                body = 'Not Found';
+                header = {};
             }
         }
         catch (e: unknown) {
-
             if (e instanceof Error) {
+                code = 500;
+                header = {};
+                body = 'Internal Server Error';
+            
+                if (typeof options?.events?.error == 'function') {
+                    options.events.error(req, res, e);
+                }
+            }
+        }
+        finally {
+            if (result != accept) {
+                header['content-length'] = Buffer.byteLength(body)
+                res.writeHead(code, header);
+                res.end(body);
 
-                let text = 'Internal Server Error';
-
-                res.writeHead(500, {
-                    'Content-Length': Buffer.byteLength(text),
-                    'Content-Type': 'text/html'
-                });
-
-                res.end(text);
-
-                if (typeof options.events.error == 'function') {
-                    options.events.error(req, res, ctx, e);
+                if (typeof options?.events?.response == 'function') {
+                    options.events.response(req, res, result);
                 }
             }
             else {
-                throw e;
+                /*This happens when a handler handles a request on its own.  If the routing result is `accept` then the connection should be closed according to a timeout in the event that the handler doesn't handle the request within a specified amount of time.*/
             }
         }
     }

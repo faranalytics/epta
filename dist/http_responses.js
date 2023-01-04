@@ -1,4 +1,3 @@
-;
 export class HTTPResponse {
     code;
     text;
@@ -17,7 +16,6 @@ export class HTTP200Response extends HTTPResponse {
     }
 }
 export class HTTP301Response extends HTTPResponse {
-    header;
     constructor(header) {
         super(301, 'Moved Permanently');
         this.header = header;
