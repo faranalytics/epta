@@ -1,4 +1,4 @@
-import { HTTP301Response, HTTPResponse } from './http_responses.js';
+import { HTTP301Response } from './http_responses.js';
 import { createRoute, accept, deny } from 'wrighter';
 export { createRoute, logger as log } from 'wrighter';
 export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) {
@@ -39,17 +39,11 @@ export let matchPath = createRoute(function matchPath(pathRegex) {
 });
 export let routeTo = createRoute(function routeTo(fn) {
     return async (req, res) => {
-        let result = await fn(req, res);
-        if (result instanceof HTTPResponse) {
-            return result;
-        }
-        else {
-            return accept;
-        }
+        return await fn(req, res);
     };
 });
 export let redirectTo = createRoute(function redirectTo(location) {
     return async (req, res) => {
-        return new HTTP301Response({ location: location });
+        return new HTTP301Response({ header: { 'location': location } });
     };
 });

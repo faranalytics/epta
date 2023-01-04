@@ -1,37 +1,32 @@
 export class HTTPResponse {
     code;
     text;
-    body;
     header;
-    constructor(code, text) {
+    body;
+    constructor(body, header, code, text) {
         this.code = code;
         this.text = text;
+        this.body = body;
+        this.header = header;
     }
 }
 export class HTTP200Response extends HTTPResponse {
-    constructor(body, header) {
-        super(200, 'OK');
-        this.body = body;
-        this.header = header;
+    constructor({ body = '', header = {} } = {}) {
+        super(body, header, 200, 'OK');
     }
 }
 export class HTTP301Response extends HTTPResponse {
-    constructor(header) {
-        super(301, 'Moved Permanently');
-        this.header = header;
+    constructor({ body = '', header = {} } = {}) {
+        super(body, header, 301, 'Moved Permanently');
     }
 }
 export class HTTP404Response extends HTTPResponse {
-    constructor(body, header) {
-        super(404, 'Not Found');
-        this.body = body;
-        this.header = header;
+    constructor({ body = '', header = {} } = {}) {
+        super(body, header, 404, 'Not Found');
     }
 }
 export class HTTP500Response extends HTTPResponse {
-    constructor(body, header) {
-        super(500, 'Internal Server Error');
-        this.body = body;
-        this.header = header;
+    constructor({ body = '', header = {} } = {}) {
+        super(body, header, 500, 'Internal Server Error');
     }
 }
