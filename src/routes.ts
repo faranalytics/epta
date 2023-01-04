@@ -47,7 +47,7 @@ export let matchPath = createRoute<[pathRegex: RegExp], ReturnT>(function matchP
     }
 });
 
-export let routeTo = createRoute<[RouteT], RouteT>(function routeTo(fn) {
+export let routeTo = createRoute<[fn: (req: http.IncomingMessage, res: http.ServerResponse) => Promise<HTTPResponse>], RouteT>(function routeTo(fn) {
     return async (req: http.IncomingMessage, res: http.ServerResponse) => {
         return await fn(req, res);
     }
