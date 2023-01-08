@@ -1,42 +1,42 @@
-import { deny } from 'wrighter';
-import { HTTP500Response, HTTP404Response, HTTPResponse } from './http_responses.js';
-export { HTTP200Response, HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
+import { deny, logger as log } from 'wrighter';
+export { createRoute, createHandler, logger as log } from 'wrighter';
 export { logger } from 'wrighter';
-export { createRoute, matchHost, redirectTo, matchMethod, matchPath, matchSchemePort, routeTo } from './routes.js';
-export let createRequestListener = (router, options) => {
+export { matchHost, matchMethod, matchPath, matchSchemePort } from './routes.js';
+export { redirectTo, routeTo } from './handlers.js';
+export let createRequestListener = (router, options = { events: { request: console.log, response: console.log, error: console.error } }) => {
     return async (req, res) => {
-        let response = null;
+        let response;
         try {
             if (typeof options?.events?.request == 'function') {
                 options.events.request(req, res);
             }
+            res.addListener('close', () => {
+                if (typeof options?.events?.response == 'function') {
+                    options.events.response(req, res);
+                }
+            });
             response = await router(req, res);
             if (response === deny) {
-                response = new HTTP404Response();
+                let body = 'Not Found';
+                res.writeHead(404, { 'content-length': Buffer.byteLength(body) });
+                res.end(body);
+            }
+            else {
+                /* Close the connection using responseTimeout */
             }
         }
         catch (e) {
             if (e instanceof Error) {
-                response = new HTTP500Response();
+                let body = 'Not Found';
+                res.writeHead(404, { 'content-length': Buffer.byteLength(body) });
+                res.end(body);
                 if (typeof options?.events?.error == 'function') {
                     options.events.error(req, res, e);
                 }
             }
-        }
-        finally {
-            if (response instanceof HTTPResponse) {
-                let header = response.header;
-                let body = response.body ? response.body : response.text;
-                header['content-length'] = Buffer.byteLength(body);
-                res.writeHead(response.code, header);
-                res.end(body);
-                if (typeof options?.events?.response == 'function') {
-                    options.events.response(req, res, response);
-                }
-            }
             else {
-                if (options.responseTimeout) {
-                }
+                log.error("The server produced an unknown error type; hence, shutting down.");
+                throw e;
             }
         }
     };
