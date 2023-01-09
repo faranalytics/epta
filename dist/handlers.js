@@ -1,23 +1,35 @@
+import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
-export let routeTo = createHandler(function routeTo(fn) {
+import { errorTemplate } from './templates.js';
+import { HTTP200Response, HTTP301Response, HTTP400Response } from './http_responses.js';
+const http400Response = new HTTP400Response({ body: errorTemplate({ 'main': 'Bad Request' }) });
+export let callFunction = createHandler(function callFunction(fn) {
     return async (req, res) => {
         await fn(req, res);
         return accept;
     };
 });
-export let redirectTo = createHandler(function redirectTo(location) {
+export let permanentRedirectTo = createHandler(function permanentRedirectTo(location) {
     return async (req, res) => {
-        return accept;
+        return new HTTP301Response({ header: { 'location': location } });
     };
 });
-export let matchFileResource = createHandler(function matchFileResource(doc_root, fileNameRegex) {
+export let servePath = createHandler(function servePath(docRoot, pathRegex) {
     return async (req, res) => {
-        // // fs.createReadStream('tmp/test.txt', {encoding: 'utf8'});
-        // if (req.url) {
-        //     let url = new URL(req.url, `scheme://${req.headers.host}/`);
-        //     console.log(url);
-        //     let path = pth.join(doc_root, url.pathname);
-        // }
+        if (req.url) {
+            if (req.url.indexOf('\0') !== -1) {
+                return http400Response;
+            }
+            let url = new URL(req.url, `scheme://${req.headers.host}/`);
+            let pathname = pth.normalize(url.pathname);
+            if (pathRegex.test(pathname)) {
+                let path = pth.join(docRoot, url.pathname);
+                if (path.indexOf(docRoot) !== 0) {
+                    return http400Response;
+                }
+                return new HTTP200Response({ body: pathname });
+            }
+        }
         return deny;
     };
 });

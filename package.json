@@ -22,6 +22,7 @@
   },
   "type": "module",
   "dependencies": {
+    "elemental-0": "file:../elemental-0",
     "wrighter": "file:../wrighter"
   }
 }
