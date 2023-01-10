@@ -3,7 +3,7 @@ import { OutgoingHttpHeaders } from "node:http";
 type HTTPResponseCode = 200 | 301 | 400 | 404 | 500;
 
 interface HTTPResponseOptions {
-    body?: string,
+    body?: string | Buffer,
     header?: OutgoingHttpHeaders;
 }
 
@@ -11,8 +11,8 @@ export abstract class HTTPResponse {
     public code: HTTPResponseCode;
     public text: string;
     public header: OutgoingHttpHeaders;
-    public body: string;
-    constructor(body: string, header: OutgoingHttpHeaders, code: HTTPResponseCode, text: string) {
+    public body: string | Buffer;
+    constructor(body: string | Buffer, header: OutgoingHttpHeaders, code: HTTPResponseCode, text: string) {
         this.code = code;
         this.text = text;
         this.body = body;
