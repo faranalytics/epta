@@ -1,88 +1,81 @@
 import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
-import { createHandler, accept, deny, logger as log } from 'wrighter';
+import { createHandler, accept, deny } from 'wrighter';
 import { errorTemplate } from './templates.js';
-import { HTTP200Response, HTTP301Response, HTTP400Response, HTTP404Response, HTTP500Response, HTTPResponse } from './http_responses.js';
-const http400Response = new HTTP400Response({ body: errorTemplate({ 'main': 'Bad Request' }) });
+import { STATUS_CODES } from 'node:http';
 export let callFunction = createHandler(function callFunction(fn) {
     return async (req, res, url) => {
-        await fn(req, res);
-        return accept;
+        return await fn(req, res);
     };
 });
 export let permanentRedirectTo = createHandler(function permanentRedirectTo(location) {
     return async (req, res, url) => {
-        return new HTTP301Response({ header: { 'location': location } });
+        res.writeHead(301, { 'location': location });
+        return accept;
     };
 });
-export let matchRequestFor = createHandler(function matchRequestFor(docRoot, mimeMap) {
+export let defaultRoute = createHandler(function defaultRoute(code, template) {
+    return async (req, res, url) => {
+        if (res.statusCode) {
+            code = res.statusCode;
+        }
+        let body = STATUS_CODES[code];
+        res.writeHead(code, { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }).end(template ? template({ 'http-response': body ? body : '' }) : body);
+        return accept;
+    };
+});
+export let matchMediaType = createHandler(function matchMediaType(docRoot, mimeMap, template) {
     let mimeMapEntries = Object.entries(mimeMap);
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
-                return http400Response;
+                let body = STATUS_CODES[400];
+                res.writeHead(400, { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }).end(template ? template({ 'http-response': body ? body : '' }) : body);
+                return accept;
             }
             let pathname = pth.normalize(url.pathname);
             for (let [mime, regex] of mimeMapEntries) {
                 if (regex.test(pathname)) {
-                    let path = pth.join(docRoot, url.pathname);
+                    let path = pth.join(docRoot, pathname);
                     if (path.indexOf(docRoot) !== 0) {
-                        return http400Response;
+                        res.statusCode = 404;
+                        return deny;
                     }
-                    let headers = { 'content-type': mime };
                     let buffer = await fs.readFile(path);
-                    return new HTTP200Response({ body: buffer, header: headers });
+                    res.writeHead(200, STATUS_CODES[200], {
+                        'content-length': buffer.length,
+                        'content-type': mime
+                    }).end(buffer);
+                    return accept;
                 }
             }
         }
+        res.statusCode = 404;
         return deny;
     };
 });
-export let requestListener = createHandler(function requestListener(fn, { handlers: { requestHandler = console.log, responseHandler = console.log, errorHandler = console.log }, et = errorTemplate }) {
+export let requestListener = createHandler(function requestListener(fn, { handlers: { requestHandler = console.log, responseHandler = console.log, errorHandler = console.error }, template = errorTemplate }) {
     return async (req, res) => {
         try {
             requestHandler(req, res);
             res.addListener('close', () => {
                 responseHandler(req, res);
             });
-            let response;
             if (req.url) {
                 let url = new URL(req.url, `${Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http'}://${req.headers.host}/`);
-                response = await fn(req, res, url);
-                console.log(response);
-            }
-            if (response === deny) {
-                response = new HTTP404Response();
-            }
-            if (response instanceof HTTPResponse) {
-                let body = response.text;
-                console.log(errorTemplate);
-                if (errorTemplate) {
-                    body = errorTemplate({ 'error': response.body.toString('utf-8') });
-                    console.log(body);
+                let response = await fn(req, res, url);
+                if (response !== accept) {
+                    throw new Error("Failed to route request; add a default route.");
                 }
-                res.writeHead(response.code, { 'content-length': Buffer.byteLength(body) });
-                res.end(body);
-            }
-            else {
-                /* Close the connection using responseTimeout */
             }
         }
         catch (e) {
             if (e instanceof Error) {
-                let response = new HTTP500Response();
-                let body = response.text;
-                if (errorTemplate) {
-                    body = errorTemplate({ 'error': body });
-                }
-                res.writeHead(response.code, { 'content-length': Buffer.byteLength(body) });
-                res.end(body);
+                let body = STATUS_CODES[500];
+                res.writeHead(500, { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }).end(template ? template({ 'http-response': body ? body : '' }) : body);
                 errorHandler(req, res, e);
             }
-            else {
-                log.error("The server produced an unknown error type; hence, shutting down.");
-                throw e;
-            }
+            console.error(e);
         }
         return accept;
     };

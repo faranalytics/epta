@@ -11,18 +11,20 @@ export let matchSchemePort = createRoute(function matchSchemePort(scheme, port) 
 export let matchHost = createRoute(function matchHost(hostRegex) {
     return async (req, res, url) => {
         if (req.headers.host) {
-            return hostRegex.test(req.headers.host.replace(/^(.*?)(?::\d{1,}$|$)/, '$1')) ? accept : deny;
+            if (hostRegex.test(req.headers.host.replace(/^(.*?)(?::\d{1,}$|$)/, '$1'))) {
+                return accept;
+            }
         }
-        else {
-            return deny;
-        }
+        res.statusCode = 400;
+        return deny;
     };
 });
 export let matchMethod = createRoute(function matchMethod(methodRegex) {
     return async (req, res, url) => {
-        if (req.method) {
-            return methodRegex.test(req.method) ? accept : deny;
+        if (req.method && methodRegex.test(req.method)) {
+            return accept;
         }
+        res.statusCode = 405;
         return deny;
     };
 });
@@ -30,8 +32,11 @@ export let matchPath = createRoute(function matchPath(pathRegex) {
     return async (req, res, url) => {
         if (req.url) {
             let url = new URL(req.url, `scheme://${req.headers.host}/`);
-            return pathRegex.test(url.pathname) ? accept : deny;
+            if (pathRegex.test(url.pathname)) {
+                return accept;
+            }
         }
+        res.statusCode = 404;
         return deny;
     };
 });
