@@ -3,15 +3,25 @@ import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
 import { errorTemplate } from './templates.js';
 import { STATUS_CODES } from 'node:http';
-export let callFunction = createHandler(function callFunction(fn) {
+export let matchAllTo = createHandler(function matchAllTo(fn) {
     return async (req, res, url) => {
-        return await fn(req, res);
+        return await fn(req, res, url);
     };
 });
-export let permanentRedirectTo = createHandler(function permanentRedirectTo(location) {
+export let matchPathToRedirect = createHandler(function matchPathToRedirect(pathRegex, location, code) {
     return async (req, res, url) => {
-        res.writeHead(301, { 'location': location });
-        return accept;
+        if (url instanceof URL) {
+            if (url.pathname.indexOf('\0') !== -1) {
+                res.statusCode = 400;
+                return deny;
+            }
+            if (pathRegex.test(url.pathname)) {
+                res.writeHead(code, { 'location': location, 'content-length': 0 }).end();
+                return accept;
+            }
+        }
+        res.statusCode = 400;
+        return deny;
     };
 });
 export let defaultRoute = createHandler(function defaultRoute(code, template) {
@@ -24,29 +34,56 @@ export let defaultRoute = createHandler(function defaultRoute(code, template) {
         return accept;
     };
 });
-export let matchMediaType = createHandler(function matchMediaType(docRoot, mimeMap, template) {
-    let mimeMapEntries = Object.entries(mimeMap);
+export let matchFilePathToMediaType = createHandler(function matchFilePathToMediaType(docRoot, pathRegex, mediaType) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
-                let body = STATUS_CODES[400];
-                res.writeHead(400, { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }).end(template ? template({ 'http-response': body ? body : '' }) : body);
-                return accept;
+                res.statusCode = 400;
+                return deny;
             }
-            let pathname = pth.normalize(url.pathname);
-            for (let [mime, regex] of mimeMapEntries) {
-                if (regex.test(pathname)) {
-                    let path = pth.join(docRoot, pathname);
-                    if (path.indexOf(docRoot) !== 0) {
-                        res.statusCode = 404;
-                        return deny;
-                    }
+            if (pathRegex.test(url.pathname)) {
+                let path = pth.join(docRoot, url.pathname);
+                if (path.indexOf(docRoot) !== 0) {
+                    res.statusCode = 404;
+                    return deny;
+                }
+                try {
                     let buffer = await fs.readFile(path);
-                    res.writeHead(200, STATUS_CODES[200], {
+                    res.writeHead(200, {
                         'content-length': buffer.length,
-                        'content-type': mime
+                        'content-type': mediaType
                     }).end(buffer);
                     return accept;
+                }
+                catch (e) {
+                    res.statusCode = 404;
+                    return deny;
+                }
+            }
+        }
+        res.statusCode = 404;
+        return deny;
+    };
+});
+export let matchFilePathTo = createHandler(function matchFilePathTo(docRoot, pathRegex, handler) {
+    return async (req, res, url) => {
+        if (url instanceof URL) {
+            if (url.pathname.indexOf('\0') !== -1) {
+                res.statusCode = 400;
+                return deny;
+            }
+            if (pathRegex.test(url.pathname)) {
+                let path = pth.join(docRoot, url.pathname);
+                if (path.indexOf(docRoot) !== 0) {
+                    res.statusCode = 404;
+                    return deny;
+                }
+                try {
+                    return await handler(req, res, url);
+                }
+                catch (e) {
+                    res.statusCode = 404;
+                    return deny;
                 }
             }
         }

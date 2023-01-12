@@ -8,16 +8,29 @@ import { ActivatorT } from 'elemental-0';
 import { STATUS_CODES } from 'node:http';
 
 
-export let callFunction = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse) => Promise<typeof accept | typeof deny>], HandlerT>(function callFunction(fn) {
+export let matchAllTo = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<typeof accept | typeof deny>], HandlerT>(function matchAllTo(fn) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-        return await fn(req, res);
+        return await fn(req, res, url);
     }
 });
 
-export let permanentRedirectTo = createHandler<[location: string], HandlerT>(function permanentRedirectTo(location) {
+export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: string, code: 301 | 302 | 307 | 308], HandlerT>(function matchPathToRedirect(pathRegex, location, code) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-        res.writeHead(301, { 'location': location });
-        return accept;
+        if (url instanceof URL) {
+
+            if (url.pathname.indexOf('\0') !== -1) {
+                res.statusCode = 400;
+                return deny;
+            }
+
+            if (pathRegex.test(url.pathname)) {
+                res.writeHead(code, { 'location': location, 'content-length': 0 }).end();
+                return accept;
+            }
+        }
+
+        res.statusCode = 400;
+        return deny;
     }
 });
 
@@ -36,38 +49,36 @@ export let defaultRoute = createHandler<[code: number, template?: ActivatorT], H
     }
 });
 
-export let matchMediaType = createHandler<[docRoot: string, mimeMap: { [key: string]: RegExp }, template?: ActivatorT], HandlerT>(
-    function matchMediaType(docRoot: string, mimeMap: { [key: string]: RegExp }, template
+export let matchFilePathToMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
+    function matchFilePathToMediaType(docRoot, pathRegex, mediaType
     ) {
-        let mimeMapEntries = Object.entries(mimeMap);
-
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
 
                 if (url.pathname.indexOf('\0') !== -1) {
-                    let body = STATUS_CODES[400];
-                    res.writeHead(
-                        400,
-                        { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
-                    ).end(template ? template({ 'http-response': body ? body : '' }) : body);
-                    return accept;
+                    res.statusCode = 400;
+                    return deny;
                 }
 
-                let pathname = pth.normalize(url.pathname);
-                for (let [mime, regex] of mimeMapEntries) {
-                    if (regex.test(pathname)) {
-                        let path = pth.join(docRoot, pathname);
-                        if (path.indexOf(docRoot) !== 0) {
-                            res.statusCode = 404;
-                            return deny;
-                        }
+                if (pathRegex.test(url.pathname)) {
+                    let path = pth.join(docRoot, url.pathname);
+                    if (path.indexOf(docRoot) !== 0) {
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                    try {
                         let buffer = await fs.readFile(path);
-                        res.writeHead(200, STATUS_CODES[200],
+                        res.writeHead(
+                            200,
                             {
                                 'content-length': buffer.length,
-                                'content-type': mime
+                                'content-type': mediaType
                             }).end(buffer);
                         return accept;
+                    }
+                    catch (e) {
+                        res.statusCode = 404;
+                        return deny;
                     }
                 }
             }
@@ -75,6 +86,39 @@ export let matchMediaType = createHandler<[docRoot: string, mimeMap: { [key: str
             return deny;
         }
     });
+
+
+export let matchFilePathTo = createHandler<[docRoot: string, pathRegex: RegExp, handler: HandlerT], HandlerT>(
+    function matchFilePathTo(docRoot, pathRegex, handler
+    ) {
+        return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+            if (url instanceof URL) {
+
+                if (url.pathname.indexOf('\0') !== -1) {
+                    res.statusCode = 400;
+                    return deny;
+                }
+
+                if (pathRegex.test(url.pathname)) {
+                    let path = pth.join(docRoot, url.pathname);
+                    if (path.indexOf(docRoot) !== 0) {
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                    try {
+                        return await handler(req, res, url);
+                    }
+                    catch (e) {
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                }
+            }
+            res.statusCode = 404;
+            return deny;
+        }
+    });
+
 
 export interface RequestListenerHandlers {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
