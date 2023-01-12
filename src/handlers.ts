@@ -8,9 +8,10 @@ import { ActivatorT } from 'elemental-0';
 import { STATUS_CODES } from 'node:http';
 
 
-export let matchAllTo = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<typeof accept | typeof deny>], HandlerT>(function matchAllTo(fn) {
+export let matchAllTo = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(function matchAllTo(fn) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-        return await fn(req, res, url);
+        await fn(req, res, url);
+        return accept;
     }
 });
 
@@ -49,8 +50,8 @@ export let matchAllToDefault = createHandler<[code: number, template?: Activator
     }
 });
 
-export let matchFilePathToMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
-    function matchFilePathToMediaType(docRoot, pathRegex, mediaType
+export let matchPathToMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
+    function matchPathToMediaType(docRoot, pathRegex, mediaType
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
@@ -88,8 +89,8 @@ export let matchFilePathToMediaType = createHandler<[docRoot: string, pathRegex:
     });
 
 
-export let matchFilePathTo = createHandler<[docRoot: string, pathRegex: RegExp, handler: HandlerT], HandlerT>(
-    function matchFilePathTo(docRoot, pathRegex, handler
+export let matchPathTo = createHandler<[docRoot: string, pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
+    function matchPathTo(docRoot, pathRegex, handler
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
@@ -106,7 +107,8 @@ export let matchFilePathTo = createHandler<[docRoot: string, pathRegex: RegExp, 
                         return deny;
                     }
                     try {
-                        return await handler(req, res, url);
+                        await handler(req, res, url);
+                        return accept;
                     }
                     catch (e) {
                         res.statusCode = 404;

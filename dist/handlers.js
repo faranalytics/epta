@@ -5,7 +5,8 @@ import { errorTemplate } from './templates.js';
 import { STATUS_CODES } from 'node:http';
 export let matchAllTo = createHandler(function matchAllTo(fn) {
     return async (req, res, url) => {
-        return await fn(req, res, url);
+        await fn(req, res, url);
+        return accept;
     };
 });
 export let matchPathToRedirect = createHandler(function matchPathToRedirect(pathRegex, location, code) {
@@ -34,7 +35,7 @@ export let matchAllToDefault = createHandler(function matchAllToDefault(code, te
         return accept;
     };
 });
-export let matchFilePathToMediaType = createHandler(function matchFilePathToMediaType(docRoot, pathRegex, mediaType) {
+export let matchPathToMediaType = createHandler(function matchPathToMediaType(docRoot, pathRegex, mediaType) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -65,7 +66,7 @@ export let matchFilePathToMediaType = createHandler(function matchFilePathToMedi
         return deny;
     };
 });
-export let matchFilePathTo = createHandler(function matchFilePathTo(docRoot, pathRegex, handler) {
+export let matchPathTo = createHandler(function matchPathTo(docRoot, pathRegex, handler) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -79,7 +80,8 @@ export let matchFilePathTo = createHandler(function matchFilePathTo(docRoot, pat
                     return deny;
                 }
                 try {
-                    return await handler(req, res, url);
+                    await handler(req, res, url);
+                    return accept;
                 }
                 catch (e) {
                     res.statusCode = 404;
