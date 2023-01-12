@@ -34,7 +34,7 @@ export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: str
     }
 });
 
-export let defaultRoute = createHandler<[code: number, template?: ActivatorT], HandlerT>(function defaultRoute(code, template) {
+export let matchAllToDefault = createHandler<[code: number, template?: ActivatorT], HandlerT>(function matchAllToDefault(code, template) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
         if (res.statusCode) {

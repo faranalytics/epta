@@ -24,7 +24,7 @@ export let matchPathToRedirect = createHandler(function matchPathToRedirect(path
         return deny;
     };
 });
-export let defaultRoute = createHandler(function defaultRoute(code, template) {
+export let matchAllToDefault = createHandler(function matchAllToDefault(code, template) {
     return async (req, res, url) => {
         if (res.statusCode) {
             code = res.statusCode;
