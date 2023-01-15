@@ -21,7 +21,6 @@
     "typescript": "^4.9.3"
   },
   "dependencies": {
-    "elemental-0": "^1.1.12",
     "memoir": "^1.0.17",
     "wrighter": "^1.0.10"
   },

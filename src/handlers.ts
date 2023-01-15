@@ -2,9 +2,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
 import { createHandler, accept, deny, logger as log } from 'wrighter';
-import { errorTemplate } from './templates.js';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
-import { ElementalT } from 'elemental-0';
 import { STATUS_CODES } from 'node:http';
 
 
@@ -35,17 +33,22 @@ export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: str
     }
 });
 
-export let matchAllToHTTPResponse = createHandler<[code: number, template?: ElementalT], HandlerT>(function matchAllToHTTPResponse(code, template) {
+export let matchAllToDefaultResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToDefaultResponse(code, body) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+
         if (res.statusCode) {
             code = res.statusCode;
         }
-        let body = STATUS_CODES[code];
+        
+        if (!body) {
+            body = STATUS_CODES[code];
+        }
+
         res.writeHead(
             code,
             { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
-        ).end(template ? template({ 'http-response': body ? body : '' }) : body);
+        ).end(body);
         return accept;
     }
 });
@@ -157,7 +160,6 @@ export interface RequestListenerHandlers {
 
 export interface RequestListenerOptions {
     handlers: RequestListenerHandlers;
-    template?: ElementalT;
     responseTimeout?: number;
 }
 
@@ -169,8 +171,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
                 requestHandler = console.log,
                 responseHandler = console.log,
                 errorHandler = console.error
-            },
-            template = errorTemplate
+            }
         }: RequestListenerOptions
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse) => {
@@ -198,7 +199,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
                     res.writeHead(
                         500,
                         { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
-                    ).end(template ? template({ 'http-response': body ? body : '' }) : body);
+                    ).end(body);
                     errorHandler(req, res, e);
                 }
                 console.error(e);
