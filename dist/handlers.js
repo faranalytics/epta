@@ -103,8 +103,19 @@ export let matchPathTo = createHandler(function matchPathTo(pathRegex, handler) 
             }
             if (pathRegex.test(url.pathname)) {
                 try {
-                    await handler(req, res, url);
-                    return accept;
+                    let body = await handler(req, res, url);
+                    if (typeof body == 'string' && !res.writableEnded) {
+                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                        res.end(body);
+                        return accept;
+                    }
+                    else if (res.writableEnded) {
+                        return accept;
+                    }
+                    else {
+                        res.statusCode = 404;
+                        return deny;
+                    }
                 }
                 catch (e) {
                     res.statusCode = 404;
@@ -127,7 +138,7 @@ export let requestListener = createHandler(function requestListener(fn, { handle
                 let url = new URL(req.url, `${Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http'}://${req.headers.host}/`);
                 let response = await fn(req, res, url);
                 if (response !== accept) {
-                    throw new Error("Failed to route request; add a default route.");
+                    throw new Error("Failed to route request; add a default route - perhaps.");
                 }
             }
         }

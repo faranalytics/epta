@@ -6,7 +6,7 @@ export declare let matchPathToRedirect: (pathRegex: RegExp, location: string, co
 export declare let matchAllToDefaultResponse: (code: number, body?: string | undefined) => HandlerT;
 export declare let matchPathToFileMediaType: (docRoot: string, pathRegex: RegExp, mediaType: string) => HandlerT;
 export declare let matchPathToFile: (docRoot: string, pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>) => HandlerT;
-export declare let matchPathTo: (pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>) => HandlerT;
+export declare let matchPathTo: (pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string>) => HandlerT;
 export interface RequestListenerHandlers {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
     responseHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;

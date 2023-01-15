@@ -1,7 +1,7 @@
 import * as http from 'node:http';
 import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
-import { createHandler, accept, deny, logger as log } from 'wrighter';
+import { createHandler, accept, deny } from 'wrighter';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
 import { STATUS_CODES } from 'node:http';
 
@@ -40,7 +40,7 @@ export let matchAllToDefaultResponse = createHandler<[code: number, body?: strin
         if (res.statusCode) {
             code = res.statusCode;
         }
-        
+
         if (!body) {
             body = STATUS_CODES[code];
         }
@@ -124,10 +124,12 @@ export let matchPathToFile = createHandler<[docRoot: string, pathRegex: RegExp, 
         }
     });
 
-export let matchPathTo = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
+export let matchPathTo = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string>], HandlerT>(
     function matchPathTo(pathRegex, handler
     ) {
+
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+
             if (url instanceof URL) {
 
                 if (url.pathname.indexOf('\0') !== -1) {
@@ -137,8 +139,21 @@ export let matchPathTo = createHandler<[pathRegex: RegExp, handler: (req: http.I
 
                 if (pathRegex.test(url.pathname)) {
                     try {
-                        await handler(req, res, url);
-                        return accept;
+
+                        let body = await handler(req, res, url);
+
+                        if (typeof body == 'string' && !res.writableEnded) {
+                            res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                            res.end(body);
+                            return accept;
+                        }
+                        else if (res.writableEnded) {
+                            return accept;
+                        }
+                        else {
+                            res.statusCode = 404;
+                            return deny;
+                        }
                     }
                     catch (e) {
                         res.statusCode = 404;
@@ -181,7 +196,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
 
                 res.addListener('close', () => {
                     responseHandler(req, res);
-                })
+                });
 
                 if (req.url) {
                     let url = new URL(req.url, `${Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http'}://${req.headers.host}/`);
@@ -189,7 +204,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
                     let response = await fn(req, res, url);
 
                     if (response !== accept) {
-                        throw new Error("Failed to route request; add a default route.");
+                        throw new Error("Failed to route request; add a default route - perhaps.");
                     }
                 }
             }
