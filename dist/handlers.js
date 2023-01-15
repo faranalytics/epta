@@ -2,7 +2,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
-export let matchAllTo = createHandler(function matchAllTo(fn) {
+export let matchAllToCall = createHandler(function matchAllToCall(fn) {
     return async (req, res, url) => {
         await fn(req, res, url);
         return accept;

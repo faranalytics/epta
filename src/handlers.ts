@@ -5,7 +5,7 @@ import { createHandler, accept, deny } from 'wrighter';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
 
 
-export let matchAllTo = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(function matchAllTo(fn) {
+export let matchAllToCall = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(function matchAllToCall(fn) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
         await fn(req, res, url);
         return accept;
