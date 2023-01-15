@@ -3,7 +3,6 @@ import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
-import { STATUS_CODES } from 'node:http';
 
 
 export let matchAllTo = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(function matchAllTo(fn) {
@@ -42,7 +41,7 @@ export let matchAllToDefaultResponse = createHandler<[code: number, body?: strin
         }
 
         if (!body) {
-            body = STATUS_CODES[code];
+            body = http.STATUS_CODES[code];
         }
 
         res.writeHead(
@@ -52,6 +51,23 @@ export let matchAllToDefaultResponse = createHandler<[code: number, body?: strin
         return accept;
     }
 });
+
+export let matchAllToResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToResponse(code, body) {
+
+    return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+
+        if (!body) {
+            body = http.STATUS_CODES[code];
+        }
+
+        res.writeHead(
+            code,
+            { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
+        ).end(body);
+        return accept;
+    }
+});
+
 
 export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
     function matchPathToFileMediaType(docRoot, pathRegex, mediaType
@@ -91,11 +107,55 @@ export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex:
         }
     });
 
+export let matchPathToMediaTypeCall = createHandler<[handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string | Buffer>, pathRegex: RegExp, mediaType: string], HandlerT>(function matchPathToMediaTypeCall(handler, pathRegex, mediaType) {
 
-export let matchPathToFile = createHandler<[docRoot: string, pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
-    function matchPathToFile(docRoot, pathRegex, handler
+    return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+
+        if (url instanceof URL) {
+
+            if (url.pathname.indexOf('\0') !== -1) {
+                res.statusCode = 400;
+                return deny;
+            }
+
+            if (pathRegex.test(url.pathname)) {
+                try {
+
+                    res.setHeader('content-type', mediaType);
+
+                    let body = await handler(req, res, url);
+
+                    if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
+                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                        res.end(body);
+                        return accept;
+                    }
+                    else if (res.writableEnded) {
+                        return accept;
+                    }
+                    else {
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                }
+                catch (e) {
+                    res.statusCode = 404;
+                    return deny;
+                }
+            }
+        }
+        res.statusCode = 404;
+        return deny;
+    }
+});
+
+
+export let matchPathToCall = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
+    function matchPathToCall(pathRegex, handler
     ) {
+
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+
             if (url instanceof URL) {
 
                 if (url.pathname.indexOf('\0') !== -1) {
@@ -104,11 +164,6 @@ export let matchPathToFile = createHandler<[docRoot: string, pathRegex: RegExp, 
                 }
 
                 if (pathRegex.test(url.pathname)) {
-                    let path = pth.join(docRoot, url.pathname);
-                    if (path.indexOf(docRoot) !== 0) {
-                        res.statusCode = 404;
-                        return deny;
-                    }
                     try {
                         await handler(req, res, url);
                         return accept;
@@ -123,49 +178,6 @@ export let matchPathToFile = createHandler<[docRoot: string, pathRegex: RegExp, 
             return deny;
         }
     });
-
-export let matchPathTo = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string>], HandlerT>(
-    function matchPathTo(pathRegex, handler
-    ) {
-
-        return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-
-            if (url instanceof URL) {
-
-                if (url.pathname.indexOf('\0') !== -1) {
-                    res.statusCode = 400;
-                    return deny;
-                }
-
-                if (pathRegex.test(url.pathname)) {
-                    try {
-
-                        let body = await handler(req, res, url);
-
-                        if (typeof body == 'string' && !res.writableEnded) {
-                            res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
-                            res.end(body);
-                            return accept;
-                        }
-                        else if (res.writableEnded) {
-                            return accept;
-                        }
-                        else {
-                            res.statusCode = 404;
-                            return deny;
-                        }
-                    }
-                    catch (e) {
-                        res.statusCode = 404;
-                        return deny;
-                    }
-                }
-            }
-            res.statusCode = 404;
-            return deny;
-        }
-    });
-
 
 export interface RequestListenerHandlers {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
@@ -210,7 +222,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
             }
             catch (e) {
                 if (e instanceof Error) {
-                    let body = STATUS_CODES[500];
+                    let body = http.STATUS_CODES[500];
                     res.writeHead(
                         500,
                         { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
