@@ -20,9 +20,10 @@
     "@types/node": "^18.11.17",
     "typescript": "^4.9.3"
   },
-  "type": "module",
   "dependencies": {
-    "elemental-0": "file:../elemental-0",
-    "wrighter": "file:../wrighter"
-  }
+    "elemental-0": "^1.1.12",
+    "memoir": "^1.0.17",
+    "wrighter": "^1.0.10"
+  },
+  "type": "module"
 }

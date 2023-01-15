@@ -25,7 +25,7 @@ export let matchPathToRedirect = createHandler(function matchPathToRedirect(path
         return deny;
     };
 });
-export let matchAllToDefault = createHandler(function matchAllToDefault(code, template) {
+export let matchAllToHTTPResponse = createHandler(function matchAllToHTTPResponse(code, template) {
     return async (req, res, url) => {
         if (res.statusCode) {
             code = res.statusCode;
@@ -35,7 +35,7 @@ export let matchAllToDefault = createHandler(function matchAllToDefault(code, te
         return accept;
     };
 });
-export let matchPathToMediaType = createHandler(function matchPathToMediaType(docRoot, pathRegex, mediaType) {
+export let matchPathToFileMediaType = createHandler(function matchPathToFileMediaType(docRoot, pathRegex, mediaType) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -66,7 +66,7 @@ export let matchPathToMediaType = createHandler(function matchPathToMediaType(do
         return deny;
     };
 });
-export let matchPathTo = createHandler(function matchPathTo(docRoot, pathRegex, handler) {
+export let matchPathToFile = createHandler(function matchPathToFile(docRoot, pathRegex, handler) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -79,6 +79,28 @@ export let matchPathTo = createHandler(function matchPathTo(docRoot, pathRegex, 
                     res.statusCode = 404;
                     return deny;
                 }
+                try {
+                    await handler(req, res, url);
+                    return accept;
+                }
+                catch (e) {
+                    res.statusCode = 404;
+                    return deny;
+                }
+            }
+        }
+        res.statusCode = 404;
+        return deny;
+    };
+});
+export let matchPathTo = createHandler(function matchPathTo(pathRegex, handler) {
+    return async (req, res, url) => {
+        if (url instanceof URL) {
+            if (url.pathname.indexOf('\0') !== -1) {
+                res.statusCode = 400;
+                return deny;
+            }
+            if (pathRegex.test(url.pathname)) {
                 try {
                     await handler(req, res, url);
                     return accept;

@@ -4,7 +4,7 @@ import * as pth from 'node:path';
 import { createHandler, accept, deny, logger as log } from 'wrighter';
 import { errorTemplate } from './templates.js';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
-import { ActivatorT } from 'elemental-0';
+import { ElementalT } from 'elemental-0';
 import { STATUS_CODES } from 'node:http';
 
 
@@ -35,7 +35,7 @@ export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: str
     }
 });
 
-export let matchAllToDefault = createHandler<[code: number, template?: ActivatorT], HandlerT>(function matchAllToDefault(code, template) {
+export let matchAllToHTTPResponse = createHandler<[code: number, template?: ElementalT], HandlerT>(function matchAllToHTTPResponse(code, template) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
         if (res.statusCode) {
@@ -50,8 +50,8 @@ export let matchAllToDefault = createHandler<[code: number, template?: Activator
     }
 });
 
-export let matchPathToMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
-    function matchPathToMediaType(docRoot, pathRegex, mediaType
+export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
+    function matchPathToFileMediaType(docRoot, pathRegex, mediaType
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
@@ -89,8 +89,8 @@ export let matchPathToMediaType = createHandler<[docRoot: string, pathRegex: Reg
     });
 
 
-export let matchPathTo = createHandler<[docRoot: string, pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
-    function matchPathTo(docRoot, pathRegex, handler
+export let matchPathToFile = createHandler<[docRoot: string, pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
+    function matchPathToFile(docRoot, pathRegex, handler
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
@@ -121,6 +121,33 @@ export let matchPathTo = createHandler<[docRoot: string, pathRegex: RegExp, hand
         }
     });
 
+export let matchPathTo = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
+    function matchPathTo(pathRegex, handler
+    ) {
+        return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
+            if (url instanceof URL) {
+
+                if (url.pathname.indexOf('\0') !== -1) {
+                    res.statusCode = 400;
+                    return deny;
+                }
+
+                if (pathRegex.test(url.pathname)) {
+                    try {
+                        await handler(req, res, url);
+                        return accept;
+                    }
+                    catch (e) {
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                }
+            }
+            res.statusCode = 404;
+            return deny;
+        }
+    });
+
 
 export interface RequestListenerHandlers {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
@@ -130,9 +157,10 @@ export interface RequestListenerHandlers {
 
 export interface RequestListenerOptions {
     handlers: RequestListenerHandlers;
-    template?: ActivatorT;
+    template?: ElementalT;
     responseTimeout?: number;
 }
+
 export let requestListener = createHandler<[fn: RouterT | HandlerT, option: RequestListenerOptions], RequestListenerT>(
     function requestListener(
         fn: RouterT | HandlerT,
