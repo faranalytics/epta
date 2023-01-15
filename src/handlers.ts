@@ -48,6 +48,7 @@ export let matchAllToDefaultResponse = createHandler<[code: number, body?: strin
             code,
             { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
         ).end(body);
+
         return accept;
     }
 });
@@ -64,6 +65,7 @@ export let matchAllToResponse = createHandler<[code: number, body?: string], Han
             code,
             { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
         ).end(body);
+
         return accept;
     }
 });
@@ -86,22 +88,19 @@ export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex:
                         res.statusCode = 404;
                         return deny;
                     }
-                    try {
-                        let buffer = await fs.readFile(path);
-                        res.writeHead(
-                            200,
-                            {
-                                'content-length': buffer.length,
-                                'content-type': mediaType
-                            }).end(buffer);
-                        return accept;
-                    }
-                    catch (e) {
-                        res.statusCode = 404;
-                        return deny;
-                    }
+
+                    let buffer = await fs.readFile(path);
+                    res.writeHead(
+                        200,
+                        {
+                            'content-length': buffer.length,
+                            'content-type': mediaType
+                        }).end(buffer);
+
+                    return accept;
                 }
             }
+
             res.statusCode = 404;
             return deny;
         }
@@ -119,31 +118,20 @@ export let matchPathToMediaTypeCall = createHandler<[handler: (req: http.Incomin
             }
 
             if (pathRegex.test(url.pathname)) {
-                try {
 
-                    res.setHeader('content-type', mediaType);
+                res.setHeader('content-type', mediaType);
 
-                    let body = await handler(req, res, url);
+                let body = await handler(req, res, url);
 
-                    if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
-                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
-                        res.end(body);
-                        return accept;
-                    }
-                    else if (res.writableEnded) {
-                        return accept;
-                    }
-                    else {
-                        res.statusCode = 404;
-                        return deny;
-                    }
+                if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
+                    res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                    res.end(body);
                 }
-                catch (e) {
-                    res.statusCode = 404;
-                    return deny;
-                }
+
+                return accept;
             }
         }
+
         res.statusCode = 404;
         return deny;
     }
@@ -164,16 +152,11 @@ export let matchPathToCall = createHandler<[pathRegex: RegExp, handler: (req: ht
                 }
 
                 if (pathRegex.test(url.pathname)) {
-                    try {
-                        await handler(req, res, url);
-                        return accept;
-                    }
-                    catch (e) {
-                        res.statusCode = 404;
-                        return deny;
-                    }
+                    await handler(req, res, url);
+                    return accept;
                 }
             }
+
             res.statusCode = 404;
             return deny;
         }
@@ -227,6 +210,7 @@ export let requestListener = createHandler<[fn: RouterT | HandlerT, option: Requ
                         500,
                         { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }
                     ).end(body);
+
                     errorHandler(req, res, e);
                 }
                 console.error(e);

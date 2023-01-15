@@ -58,18 +58,12 @@ export let matchPathToFileMediaType = createHandler(function matchPathToFileMedi
                     res.statusCode = 404;
                     return deny;
                 }
-                try {
-                    let buffer = await fs.readFile(path);
-                    res.writeHead(200, {
-                        'content-length': buffer.length,
-                        'content-type': mediaType
-                    }).end(buffer);
-                    return accept;
-                }
-                catch (e) {
-                    res.statusCode = 404;
-                    return deny;
-                }
+                let buffer = await fs.readFile(path);
+                res.writeHead(200, {
+                    'content-length': buffer.length,
+                    'content-type': mediaType
+                }).end(buffer);
+                return accept;
             }
         }
         res.statusCode = 404;
@@ -84,26 +78,13 @@ export let matchPathToMediaTypeCall = createHandler(function matchPathToMediaTyp
                 return deny;
             }
             if (pathRegex.test(url.pathname)) {
-                try {
-                    res.setHeader('content-type', mediaType);
-                    let body = await handler(req, res, url);
-                    if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
-                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
-                        res.end(body);
-                        return accept;
-                    }
-                    else if (res.writableEnded) {
-                        return accept;
-                    }
-                    else {
-                        res.statusCode = 404;
-                        return deny;
-                    }
+                res.setHeader('content-type', mediaType);
+                let body = await handler(req, res, url);
+                if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
+                    res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                    res.end(body);
                 }
-                catch (e) {
-                    res.statusCode = 404;
-                    return deny;
-                }
+                return accept;
             }
         }
         res.statusCode = 404;
@@ -118,14 +99,8 @@ export let matchPathToCall = createHandler(function matchPathToCall(pathRegex, h
                 return deny;
             }
             if (pathRegex.test(url.pathname)) {
-                try {
-                    await handler(req, res, url);
-                    return accept;
-                }
-                catch (e) {
-                    res.statusCode = 404;
-                    return deny;
-                }
+                await handler(req, res, url);
+                return accept;
             }
         }
         res.statusCode = 404;
