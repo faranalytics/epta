@@ -4,15 +4,7 @@ import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
 import { HandlerT, RequestListenerT, RouterT } from './types.js'
 
-
-export let matchAllToCall = createHandler<[fn: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(function matchAllToCall(fn) {
-    return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-        await fn(req, res, url);
-        return accept;
-    }
-});
-
-export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: string, code: 301 | 302 | 307 | 308], HandlerT>(function matchPathToRedirect(pathRegex, location, code) {
+export let matchPathToHTTPRedirect = createHandler<[pathRegex: RegExp, location: string, code: 301 | 302 | 307 | 308], HandlerT>(function matchPathToHTTPRedirect(pathRegex, location, code) {
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
         if (url instanceof URL) {
 
@@ -32,7 +24,7 @@ export let matchPathToRedirect = createHandler<[pathRegex: RegExp, location: str
     }
 });
 
-export let matchAllToDefaultResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToDefaultResponse(code, body) {
+export let matchAllToDefaultHTTPResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToDefaultHTTPResponse(code, body) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
 
@@ -53,7 +45,7 @@ export let matchAllToDefaultResponse = createHandler<[code: number, body?: strin
     }
 });
 
-export let matchAllToResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToResponse(code, body) {
+export let matchAllToHTTPResponse = createHandler<[code: number, body?: string], HandlerT>(function matchAllToHTTPResponse(code, body) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
 
@@ -71,8 +63,8 @@ export let matchAllToResponse = createHandler<[code: number, body?: string], Han
 });
 
 
-export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex: RegExp, mediaType: string], HandlerT>(
-    function matchPathToFileMediaType(docRoot, pathRegex, mediaType
+export let matchPathToMediaType = createHandler<[pathRegex: RegExp, docRoot: string, mediaType: string], HandlerT>(
+    function matchPathToMediaType(pathRegex, docRoot, mediaType
     ) {
         return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
             if (url instanceof URL) {
@@ -89,15 +81,26 @@ export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex:
                         return deny;
                     }
 
-                    let buffer = await fs.readFile(path);
-                    res.writeHead(
-                        200,
-                        {
-                            'content-length': buffer.length,
-                            'content-type': mediaType
-                        }).end(buffer);
+                    try {
+                        let stat = await fs.stat(path);
+                        if (stat.isFile()) {
+                            let buffer = await fs.readFile(path);
+                            res.writeHead(
+                                200,
+                                {
+                                    'content-length': buffer.length,
+                                    'content-type': mediaType
+                                }).end(buffer);
+                            return accept;
+                        }
+                        res.statusCode = 404;
+                        return deny;
+                    }
+                    catch (e) {
+                        res.statusCode = 404;
+                        return deny;
+                    }
 
-                    return accept;
                 }
             }
 
@@ -106,7 +109,7 @@ export let matchPathToFileMediaType = createHandler<[docRoot: string, pathRegex:
         }
     });
 
-export let matchPathToMediaTypeCall = createHandler<[handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string | Buffer>, pathRegex: RegExp, mediaType: string], HandlerT>(function matchPathToMediaTypeCall(handler, pathRegex, mediaType) {
+export let matchPathToHandler = createHandler<[pathRegexes: Array<RegExp>, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<string | Buffer>, mediaType: string], HandlerT>(function matchPathToHandler(pathRegexes, handler, mediaType) {
 
     return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
 
@@ -117,18 +120,20 @@ export let matchPathToMediaTypeCall = createHandler<[handler: (req: http.Incomin
                 return deny;
             }
 
-            if (pathRegex.test(url.pathname)) {
+            for (let regex of pathRegexes) {
+                if (regex.test(url.pathname)) {
 
-                res.setHeader('content-type', mediaType);
+                    res.setHeader('content-type', mediaType);
 
-                let body = await handler(req, res, url);
+                    let body = await handler(req, res, url);
 
-                if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
-                    res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
-                    res.end(body);
+                    if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
+                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                        res.end(body);
+                    }
+
+                    return accept;
                 }
-
-                return accept;
             }
         }
 
@@ -136,31 +141,6 @@ export let matchPathToMediaTypeCall = createHandler<[handler: (req: http.Incomin
         return deny;
     }
 });
-
-
-export let matchPathToCall = createHandler<[pathRegex: RegExp, handler: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<void>], HandlerT>(
-    function matchPathToCall(pathRegex, handler
-    ) {
-
-        return async (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => {
-
-            if (url instanceof URL) {
-
-                if (url.pathname.indexOf('\0') !== -1) {
-                    res.statusCode = 400;
-                    return deny;
-                }
-
-                if (pathRegex.test(url.pathname)) {
-                    await handler(req, res, url);
-                    return accept;
-                }
-            }
-
-            res.statusCode = 404;
-            return deny;
-        }
-    });
 
 export interface RequestListenerHandlers {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
@@ -173,8 +153,8 @@ export interface RequestListenerOptions {
     responseTimeout?: number;
 }
 
-export let requestListener = createHandler<[fn: RouterT | HandlerT, option: RequestListenerOptions], RequestListenerT>(
-    function requestListener(
+export let createListener = createHandler<[fn: RouterT | HandlerT, option: RequestListenerOptions], RequestListenerT>(
+    function createListener(
         fn: RouterT | HandlerT,
         {
             handlers: {

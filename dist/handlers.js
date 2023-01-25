@@ -2,13 +2,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs/promises';
 import * as pth from 'node:path';
 import { createHandler, accept, deny } from 'wrighter';
-export let matchAllToCall = createHandler(function matchAllToCall(fn) {
-    return async (req, res, url) => {
-        await fn(req, res, url);
-        return accept;
-    };
-});
-export let matchPathToRedirect = createHandler(function matchPathToRedirect(pathRegex, location, code) {
+export let matchPathToHTTPRedirect = createHandler(function matchPathToHTTPRedirect(pathRegex, location, code) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -24,7 +18,7 @@ export let matchPathToRedirect = createHandler(function matchPathToRedirect(path
         return deny;
     };
 });
-export let matchAllToDefaultResponse = createHandler(function matchAllToDefaultResponse(code, body) {
+export let matchAllToDefaultHTTPResponse = createHandler(function matchAllToDefaultHTTPResponse(code, body) {
     return async (req, res, url) => {
         if (res.statusCode) {
             code = res.statusCode;
@@ -36,7 +30,7 @@ export let matchAllToDefaultResponse = createHandler(function matchAllToDefaultR
         return accept;
     };
 });
-export let matchAllToResponse = createHandler(function matchAllToResponse(code, body) {
+export let matchAllToHTTPResponse = createHandler(function matchAllToHTTPResponse(code, body) {
     return async (req, res, url) => {
         if (!body) {
             body = http.STATUS_CODES[code];
@@ -45,7 +39,7 @@ export let matchAllToResponse = createHandler(function matchAllToResponse(code, 
         return accept;
     };
 });
-export let matchPathToFileMediaType = createHandler(function matchPathToFileMediaType(docRoot, pathRegex, mediaType) {
+export let matchPathToMediaType = createHandler(function matchPathToMediaType(pathRegex, docRoot, mediaType) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
@@ -58,56 +52,53 @@ export let matchPathToFileMediaType = createHandler(function matchPathToFileMedi
                     res.statusCode = 404;
                     return deny;
                 }
-                let buffer = await fs.readFile(path);
-                res.writeHead(200, {
-                    'content-length': buffer.length,
-                    'content-type': mediaType
-                }).end(buffer);
-                return accept;
-            }
-        }
-        res.statusCode = 404;
-        return deny;
-    };
-});
-export let matchPathToMediaTypeCall = createHandler(function matchPathToMediaTypeCall(handler, pathRegex, mediaType) {
-    return async (req, res, url) => {
-        if (url instanceof URL) {
-            if (url.pathname.indexOf('\0') !== -1) {
-                res.statusCode = 400;
-                return deny;
-            }
-            if (pathRegex.test(url.pathname)) {
-                res.setHeader('content-type', mediaType);
-                let body = await handler(req, res, url);
-                if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
-                    res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
-                    res.end(body);
+                try {
+                    let stat = await fs.stat(path);
+                    if (stat.isFile()) {
+                        let buffer = await fs.readFile(path);
+                        res.writeHead(200, {
+                            'content-length': buffer.length,
+                            'content-type': mediaType
+                        }).end(buffer);
+                        return accept;
+                    }
+                    res.statusCode = 404;
+                    return deny;
                 }
-                return accept;
+                catch (e) {
+                    res.statusCode = 404;
+                    return deny;
+                }
             }
         }
         res.statusCode = 404;
         return deny;
     };
 });
-export let matchPathToCall = createHandler(function matchPathToCall(pathRegex, handler) {
+export let matchPathToHandler = createHandler(function matchPathToHandler(pathRegexes, handler, mediaType) {
     return async (req, res, url) => {
         if (url instanceof URL) {
             if (url.pathname.indexOf('\0') !== -1) {
                 res.statusCode = 400;
                 return deny;
             }
-            if (pathRegex.test(url.pathname)) {
-                await handler(req, res, url);
-                return accept;
+            for (let regex of pathRegexes) {
+                if (regex.test(url.pathname)) {
+                    res.setHeader('content-type', mediaType);
+                    let body = await handler(req, res, url);
+                    if ((typeof body == 'string' || body instanceof Buffer) && !res.writableEnded) {
+                        res.writeHead(200, { 'content-length': Buffer.byteLength(body) });
+                        res.end(body);
+                    }
+                    return accept;
+                }
             }
         }
         res.statusCode = 404;
         return deny;
     };
 });
-export let requestListener = createHandler(function requestListener(fn, { handlers: { requestHandler = console.log, responseHandler = console.log, errorHandler = console.error } }) {
+export let createListener = createHandler(function createListener(fn, { handlers: { requestHandler = console.log, responseHandler = console.log, errorHandler = console.error } }) {
     return async (req, res) => {
         try {
             requestHandler(req, res);
