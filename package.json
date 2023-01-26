@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "memoir": "^1.0.17",
-    "wrighter": "^1.0.10"
+    "wrighter": "file:../wrighter"
   },
   "type": "module"
 }

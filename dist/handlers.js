@@ -98,29 +98,3 @@ export let matchPathToHandler = createHandler(function matchPathToHandler(pathRe
         return deny;
     };
 });
-export let createListener = createHandler(function createListener(fn, { handlers: { requestHandler = console.log, responseHandler = console.log, errorHandler = console.error } }) {
-    return async (req, res) => {
-        try {
-            requestHandler(req, res);
-            res.addListener('close', () => {
-                responseHandler(req, res);
-            });
-            if (req.url) {
-                let url = new URL(req.url, `${Object.hasOwn(req.socket, 'encrypted') ? 'https' : 'http'}://${req.headers.host}/`);
-                let response = await fn(req, res, url);
-                if (response !== accept) {
-                    throw new Error("Failed to route request; add a default route - perhaps.");
-                }
-            }
-        }
-        catch (e) {
-            if (e instanceof Error) {
-                let body = http.STATUS_CODES[500];
-                res.writeHead(500, { 'content-length': body ? body.length : 0, 'content-type': 'text/html' }).end(body);
-                errorHandler(req, res, e);
-            }
-            console.error(e);
-        }
-        return accept;
-    };
-});
