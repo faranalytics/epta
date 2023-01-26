@@ -1,7 +1,7 @@
 
 import * as http from 'node:http';
 import { createTransformer, accept, deny } from 'wrighter';
-import { HandlerT, RequestListenerT, RouterT } from './types.js'
+import { RequestListenerT, RouterT } from './types.js'
 
 export interface RequestListenerOptions {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
@@ -10,13 +10,13 @@ export interface RequestListenerOptions {
     responseTimeout?: number;
 }
 
-export let createListener = createTransformer<[options: RequestListenerOptions], RequestListenerT, RouterT | HandlerT>(function createListener({
+export let createListener = createTransformer<[options: RequestListenerOptions], RequestListenerT, RouterT>(function createListener({
     requestHandler = console.log,
     responseHandler = console.log,
     errorHandler = console.error,
     responseTimeout = -1
 }) {
-    return async (forward: RouterT | HandlerT, req: http.IncomingMessage, res: http.ServerResponse) => {
+    return async (forward: RouterT, req: http.IncomingMessage, res: http.ServerResponse) => {
 
         try {
             res.addListener('close', () => {
