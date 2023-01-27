@@ -7,18 +7,22 @@ export interface RequestListenerOptions {
     requestHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
     responseHandler: (req: http.IncomingMessage, res: http.ServerResponse) => void;
     errorHandler: (req: http.IncomingMessage, res: http.ServerResponse, error: Error) => void;
-    responseTimeout?: number;
+    responseTimeout?: number | null;
 }
 
-export let createListener = createTransformer<[options: RequestListenerOptions], RequestListenerT, RouterT>(function createListener({
+export let createListener = createTransformer<[options: RequestListenerOptions], RequestListenerT, RouterT>(function listener({
     requestHandler = console.log,
     responseHandler = console.log,
     errorHandler = console.error,
-    responseTimeout = -1
+    responseTimeout = undefined
 }) {
-    return async (forward: RouterT, req: http.IncomingMessage, res: http.ServerResponse) => {
+    return async function (forward: RouterT, req: http.IncomingMessage, res: http.ServerResponse) {
 
         try {
+            if (responseTimeout) {
+                setTimeout(()=> res.writeHead(408).end(http.STATUS_CODES[408]), responseTimeout);
+            }
+
             res.addListener('close', () => {
                 responseHandler(req, res);
             });

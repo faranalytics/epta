@@ -1,8 +1,11 @@
 import * as http from 'node:http';
 import { createTransformer, accept, deny } from 'wrighter';
-export let createListener = createTransformer(function createListener({ requestHandler = console.log, responseHandler = console.log, errorHandler = console.error, responseTimeout = -1 }) {
-    return async (forward, req, res) => {
+export let createListener = createTransformer(function listener({ requestHandler = console.log, responseHandler = console.log, errorHandler = console.error, responseTimeout = undefined }) {
+    return async function (forward, req, res) {
         try {
+            if (responseTimeout) {
+                setTimeout(() => res.writeHead(408).end(http.STATUS_CODES[408]), responseTimeout);
+            }
             res.addListener('close', () => {
                 responseHandler(req, res);
             });
